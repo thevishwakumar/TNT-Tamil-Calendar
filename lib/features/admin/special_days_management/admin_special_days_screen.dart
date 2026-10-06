@@ -4,6 +4,7 @@ import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
 import '../repositories/admin_content_repository.dart';
 import '../widgets/admin_form_widgets.dart';
+import '../services/admin_import_service.dart';
 
 /// Admin Special Days Management Screen (Pradosham, Amavasai, Pournami, Ekadasi, etc.)
 class AdminSpecialDaysScreen extends StatefulWidget {
@@ -130,6 +131,26 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     );
   }
 
+  Future<void> _handleImport() async {
+    setState(() => _isLoading = true);
+    final service = AdminImportService();
+    final result = await service.pickAndImportSpecialDays();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: result.success ? Colors.green : Colors.redAccent,
+        ),
+      );
+      if (result.success) {
+        _loadSpecialDays(forceRefresh: true);
+      } else {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,9 +161,14 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
         elevation: 0,
         actions: [ const TNTBrandHeader(), 
           IconButton(
+            icon: const Icon(Icons.file_upload_outlined, color: TNTColors.primary), 
+            onPressed: _handleImport,
+            tooltip: 'Import CSV/Excel',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), 
             onPressed: () => _loadSpecialDays(forceRefresh: true),
-            tooltip: 'Refresh from Navamsha API',
+            tooltip: 'Refresh from API',
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(

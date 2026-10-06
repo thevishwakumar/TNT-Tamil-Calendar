@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
+import '../../core/widgets/tnt_loading_overlay.dart';
+import '../../core/widgets/tnt_error_overlay.dart';
 import '../../models/tnt_models.dart';
 import '../../services/supabase_service.dart';
 import 'date_details_screen.dart';
@@ -24,6 +26,7 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAliveClientMixin {
   bool isLoading = false;
+  String? _errorMessage;
   DateTime currentMonth = DateTime.now();
   DateTime selectedDate = DateTime.now();
 
@@ -61,7 +64,10 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final results = await Future.wait([
         widget.apiService.getFestivals(currentMonth.year, currentMonth.month),
@@ -82,7 +88,11 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
       });
       _logAnalyticsEvent('calendar_month_change');
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      print(e.toString());
+      if (mounted) setState(() {
+        isLoading = false;
+        _errorMessage = e.toString();
+      });
     }
   }
 
@@ -164,32 +174,41 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
           child: Container(color: TNTColors.border, height: 1),
         ),
       ),
-      body: isLoading
-          ? const TNTLoadingWidget()
-          : RefreshIndicator(
-              color: TNTColors.primary,
-              onRefresh: _loadEvents,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    // Month navigation bar
-                    _buildMonthNavigationHeader(isTamil),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            color: TNTColors.primary,
+            onRefresh: _loadEvents,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  // Month navigation bar
+                  _buildMonthNavigationHeader(isTamil),
 
-                    // Week Days Header Row
-                    _buildWeekDaysHeader(isTamil),
+                  // Week Days Header Row
+                  _buildWeekDaysHeader(isTamil),
 
-                    // Days Grid
-                    _buildCalendarGrid(isTamil),
+                  // Days Grid
+                  _buildCalendarGrid(isTamil),
 
-                    const Divider(color: TNTColors.border, height: 1),
+                  const Divider(color: TNTColors.border, height: 1),
 
-                    // Accessible Event Key Indicators List
-                    _buildEventIndicatorsList(localizations, isTamil),
-                  ],
-                ),
+                  // Accessible Event Key Indicators List
+                  _buildEventIndicatorsList(localizations, isTamil),
+                ],
               ),
             ),
+          ),
+          if (isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
+          if (_errorMessage != null && !isLoading)
+            Positioned.fill(
+              child: TNTErrorOverlay(
+                onRetry: _loadEvents,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -237,13 +256,13 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
   Widget _buildWeekDaysHeader(bool isTamil) {
     final days = isTamil
         ? [
-            'à®žà®¾à®¯à®¿à®±à¯',
-            'à®¤à®¿à®™à¯à®•à®³à¯',
-            'à®šà¯†à®µà¯à®µà®¾à®¯à¯',
-            'à®ªà¯à®¤à®©à¯',
-            'à®µà®¿à®¯à®¾à®´à®©à¯',
-            'à®µà¯†à®³à¯à®³à®¿',
-            'à®šà®©à®¿'
+            'ஞாயிறு',
+            'திங்கள்',
+            'செவ்வாய்',
+            'புதன்',
+            'வியாழன்',
+            'வெள்ளி',
+            'சனி'
           ]
         : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -253,9 +272,9 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: days
             .map((day) {
-              final isWeekend = day == 'à®žà®¾à®¯à®¿à®±à¯' ||
+              final isWeekend = day == 'ஞாயிறு' ||
                   day == 'Sun' ||
-                  day == 'à®šà®©à®¿' ||
+                  day == 'சனி' ||
                   day == 'Sat';
               final label = day.length > 3 ? day.substring(0, 3) : day;
               return Expanded(
@@ -443,7 +462,7 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
         children: [
           Text(
             isTamil
-                ? 'à®‡à®¨à¯à®¤ à®®à®¾à®¤ à®šà®¿à®±à®ªà¯à®ªà¯ à®¨à®¾à®Ÿà¯à®•à®³à¯'
+                ? 'இந்த மாத சிறப்பு நாட்கள்'
                 : 'Special Days of the Month',
             style: const TextStyle(
                 fontSize: 14,
@@ -466,7 +485,7 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
                   TNTColors.accent,
                   Icons.festival_outlined,
                   'ðŸ›•',
-                  isTamil ? 'à®ªà®£à¯à®Ÿà®¿à®•à¯ˆ' : 'Festival',
+                  isTamil ? 'பண்டிகை' : 'Festival',
                 );
               } else if (index < festivals.length + specialDays.length) {
                 final s = specialDays[index - festivals.length];
@@ -478,7 +497,7 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
                   Icons.star_outline_rounded,
                   'ðŸ“Œ',
                   isTamil
-                      ? 'à®šà®¿à®±à®ªà¯à®ªà¯ à®¨à®¾à®³à¯'
+                      ? 'சிறப்பு நாள்'
                       : 'Special Day',
                 );
               } else {
@@ -487,13 +506,13 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
                 return _buildEventTile(
                   m.date.day,
                   isTamil
-                      ? 'à®šà¯à®ª à®®à¯à®•à¯‚à®°à¯à®¤à¯à®¤à®®à¯'
+                      ? 'சுப முகூர்த்தம்'
                       : 'Auspicious Muhurtham',
                   isTamil ? m.descriptionTa : m.description,
                   TNTColors.primary,
                   Icons.favorite_rounded,
                   'ðŸ’',
-                  isTamil ? 'à®®à¯à®•à¯‚à®°à¯à®¤à¯à®¤à®®à¯' : 'Muhurtham',
+                  isTamil ? 'முகூர்த்தம்' : 'Muhurtham',
                 );
               }
             },
@@ -578,18 +597,18 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
   String _getMonthName(int month, bool isTamil) {
     if (isTamil) {
       const months = [
-        'à®œà®©à®µà®°à®¿',
-        'à®ªà®¿à®ªà¯à®°à®µà®°à®¿',
-        'à®®à®¾à®°à¯à®šà¯',
-        'à®à®ªà¯à®°à®²à¯',
-        'à®®à¯‡',
-        'à®œà¯‚à®©à¯',
-        'à®œà¯‚à®²à¯ˆ',
-        'à®†à®•à®¸à¯à®Ÿà¯',
-        'à®šà¯†à®ªà¯à®Ÿà®®à¯à®ªà®°à¯',
-        'à®…à®•à¯à®Ÿà¯‹à®ªà®°à¯',
-        'à®¨à®µà®®à¯à®ªà®°à¯',
-        'à®Ÿà®¿à®šà®®à¯à®ªà®°à¯'
+        'ஜனவரி',
+        'பிப்ரவரி',
+        'மார்ச்',
+        'ஏப்ரல்',
+        'மே',
+        'ஜூன்',
+        'ஜூலை',
+        'ஆகஸ்ட்',
+        'செப்டம்பர்',
+        'அக்டோபர்',
+        'நவம்பர்',
+        'டிசம்பர்'
       ];
       return months[month - 1];
     } else {

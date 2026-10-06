@@ -5,6 +5,7 @@ import '../../../models/tnt_models.dart';
 import '../../../repositories/tnt_repositories.dart';
 import '../repositories/admin_content_repository.dart';
 import '../widgets/admin_form_widgets.dart';
+import '../services/admin_import_service.dart';
 
 /// Admin Muhurtham Management Screen (Marriage & Auspicious Dates)
 class AdminMuhurthamScreen extends StatefulWidget {
@@ -96,6 +97,26 @@ class _AdminMuhurthamScreenState extends State<AdminMuhurthamScreen> {
     );
   }
 
+  Future<void> _handleImport() async {
+    setState(() => _isLoading = true);
+    final service = AdminImportService();
+    final result = await service.pickAndImportMuhurtham();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: result.success ? Colors.green : Colors.redAccent,
+        ),
+      );
+      if (result.success) {
+        _loadMuhurthams(forceRefresh: true);
+      } else {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,9 +127,14 @@ class _AdminMuhurthamScreenState extends State<AdminMuhurthamScreen> {
         elevation: 0,
         actions: [ const TNTBrandHeader(), 
           IconButton(
+            icon: const Icon(Icons.file_upload_outlined, color: TNTColors.primary), 
+            onPressed: _handleImport,
+            tooltip: 'Import CSV/Excel',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), 
             onPressed: () => _loadMuhurthams(forceRefresh: true),
-            tooltip: 'Refresh from Navamsha API',
+            tooltip: 'Refresh from API',
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(

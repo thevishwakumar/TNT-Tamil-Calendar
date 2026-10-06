@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
+import '../../core/widgets/tnt_loading_overlay.dart';
+import '../../core/widgets/tnt_error_overlay.dart';
 import '../../models/tnt_models.dart';
 import '../../panchangam/widgets/city_selector_sheet.dart';
 import '../../services/supabase_service.dart';
@@ -120,6 +122,7 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
       setState(() {
         _isLoading = false;
         _isRefreshing = false;
+        print(e.toString());
         _errorMessage = e.toString();
       });
     }
@@ -355,30 +358,34 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
 
             // Main Muhurtham List
             Expanded(
-              child: _isLoading
-                  ? const TNTLoadingWidget()
-                  : _errorMessage != null
-                      ? TNTErrorWidget(
-                          message: _errorMessage!,
-                          onRetry: _loadMuhurthams,
-                        )
-                      : _muhurthams.isEmpty
-                          ? _buildEmptyState(isTamil, localizations)
-                          : ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _muhurthams.length,
-                              itemBuilder: (context, index) {
-                                final item = _muhurthams[index];
-                                return MuhurthamDateCard(
-                                  item: item,
-                                  onTap: () => _openDetailScreen(item),
-                                  onToggleSave: () => _toggleSaveMuhurtham(item),
-                                  onSetReminder: () => _openReminderDialog(item),
-                                  onShare: () => _openShareSheet(item),
-                                );
-                              },
-                            ),
+              child: Stack(
+                children: [
+                  _muhurthams.isEmpty && !_isLoading && _errorMessage == null
+                      ? _buildEmptyState(isTamil, localizations)
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _muhurthams.length,
+                          itemBuilder: (context, index) {
+                            final item = _muhurthams[index];
+                            return MuhurthamDateCard(
+                              item: item,
+                              onTap: () => _openDetailScreen(item),
+                              onToggleSave: () => _toggleSaveMuhurtham(item),
+                              onSetReminder: () => _openReminderDialog(item),
+                              onShare: () => _openShareSheet(item),
+                            );
+                          },
+                        ),
+                  if (_isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
+                  if (_errorMessage != null && !_isLoading)
+                    Positioned.fill(
+                      child: TNTErrorOverlay(
+                        onRetry: _loadMuhurthams,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ],
         ),

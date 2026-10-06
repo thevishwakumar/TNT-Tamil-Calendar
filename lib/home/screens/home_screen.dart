@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
+import '../../core/widgets/tnt_loading_overlay.dart';
+import '../../core/widgets/tnt_error_overlay.dart';
 import '../../models/tnt_models.dart';
 import '../../services/supabase_service.dart';
 import '../../special_days/screens/special_days_screen.dart';
@@ -328,55 +330,66 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: TNTColors.background,
       appBar: _buildHeaderBar(translate),
-      body: RefreshIndicator(
-        color: TNTColors.primary,
-        backgroundColor: TNTColors.surface,
-        onRefresh: _handleRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              
-              // 1. Today's prominent Date Card
-              _buildTodayDateCard(translate, isTamil),
-              const SizedBox(height: 16),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            color: TNTColors.primary,
+            backgroundColor: TNTColors.surface,
+            onRefresh: _handleRefresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  
+                  // 1. Today's prominent Date Card
+                  _buildTodayDateCard(translate, isTamil),
+                  const SizedBox(height: 16),
 
-              // 2. Quick navigation shortcuts
-              _buildQuickActionsGrid(translate),
-              const SizedBox(height: 18),
+                  // 2. Quick navigation shortcuts
+                  _buildQuickActionsGrid(translate),
+                  const SizedBox(height: 18),
 
-              // 3. Today's Panchangam Grid
-              _buildPanchangamAspectsGrid(translate, isTamil),
-              const SizedBox(height: 18),
+                  // 3. Today's Panchangam Grid
+                  _buildPanchangamAspectsGrid(translate, isTamil),
+                  const SizedBox(height: 18),
 
-              // 4. Important auspicious/inauspicious timing details
-              _buildImportantTimingsBlock(translate, isTamil),
-              const SizedBox(height: 18),
+                  // 4. Important auspicious/inauspicious timing details
+                  _buildImportantTimingsBlock(translate, isTamil),
+                  const SizedBox(height: 18),
 
-              // 5. Today's Special & Festival Highlights (Database driven, no hardcoding)
-              _buildTodaysSpecialHighlight(translate, isTamil),
-              const SizedBox(height: 18),
+                  // 5. Today's Special & Festival Highlights (Database driven, no hardcoding)
+                  _buildTodaysSpecialHighlight(translate, isTamil),
+                  const SizedBox(height: 18),
 
-              // 6. Upcoming Festivals with VIEW ALL
-              _buildUpcomingFestivalsBlock(translate, isTamil),
-              const SizedBox(height: 18),
+                  // 6. Upcoming Festivals with VIEW ALL
+                  _buildUpcomingFestivalsBlock(translate, isTamil),
+                  const SizedBox(height: 18),
 
-              // 7. Upcoming Special Days with VIEW ALL
-              _buildUpcomingSpecialDaysBlock(translate, isTamil),
-              const SizedBox(height: 18),
+                  // 7. Upcoming Special Days with VIEW ALL
+                  _buildUpcomingSpecialDaysBlock(translate, isTamil),
+                  const SizedBox(height: 18),
 
-              // 8. Upcoming Muhurtham preview (Strictly from database, avoids ai slop)
-              _buildMuhurthamPreviewBlock(translate, isTamil),
-              const SizedBox(height: 18),
+                  // 8. Upcoming Muhurtham preview (Strictly from database, avoids ai slop)
+                  _buildMuhurthamPreviewBlock(translate, isTamil),
+                  const SizedBox(height: 18),
 
-              // 9. Featured promotional media (Guarded from Draft/Pending timeline)
-              _buildFeaturedContentCard(translate, isTamil),
-              const SizedBox(height: 30),
-            ],
+                  // 9. Featured promotional media (Guarded from Draft/Pending timeline)
+                  _buildFeaturedContentCard(translate, isTamil),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
           ),
-        ),
+          if (_isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
+          if (_errorMsg != null && !_isLoading)
+            Positioned.fill(
+              child: TNTErrorOverlay(
+                onRetry: _loadAllHomeData,
+              ),
+            ),
+        ],
       ),
     );
   }

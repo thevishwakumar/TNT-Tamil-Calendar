@@ -57,20 +57,20 @@ class SupabaseApiService implements ITNTApiService {
   Future<CalendarDay> getCalendarDay(DateTime date) async {
     if (!_db.isInitialized) throw TNTException('Supabase not initialized');
     final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    final res = await _db.client.from('calendar_days').select().eq('gregorian_date', dateStr).maybeSingle();
+    final res = await _db.client.from('calendar_days').select().eq('date', dateStr).maybeSingle();
     
     if (res == null) throw TNTException('No calendar data available for this date');
     
     return CalendarDay(
-      gregorianDate: DateTime.parse(res['gregorian_date']),
-      tamilMonth: res['tamil_month'],
-      tamilYear: res['tamil_year'],
-      tamilDay: res['tamil_day'],
-      tamilDateStr: res['tamil_date_str'],
-      tithi: res['tithi'],
-      tithiTa: res['tithi_ta'],
-      nakshatra: res['nakshatra'],
-      nakshatraTa: res['nakshatra_ta'],
+      gregorianDate: DateTime.parse(res['date'] ?? dateStr),
+      tamilMonth: res['tamil_month'] ?? '',
+      tamilYear: res['tamil_year'] ?? '',
+      tamilDay: int.tryParse(res['tamil_date'] ?? '1') ?? 1,
+      tamilDateStr: res['tamil_date'] ?? '',
+      tithi: res['tithi'] ?? '',
+      tithiTa: res['tithi_ta'] ?? '',
+      nakshatra: res['nakshatra'] ?? '',
+      nakshatraTa: res['nakshatra_ta'] ?? '',
       isAuspicious: res['is_auspicious'] ?? false,
     );
   }
@@ -86,14 +86,16 @@ class SupabaseApiService implements ITNTApiService {
     if (!_db.isInitialized) throw TNTException('Supabase not initialized');
     final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     
-    final res = await _db.client.from('important_timings').select().eq('date', dateStr);
+    final res = await _db.client.from('timing_entries')
+        .select('*, calendar_days!inner(date)')
+        .eq('calendar_days.date', dateStr);
     
     return (res as List).map((e) => TimingEntry(
-      name: e['name'],
-      nameTa: e['name_ta'],
-      startTime: e['start_time'],
-      endTime: e['end_time'],
-      isAuspicious: e['is_auspicious'] ?? false,
+      name: e['timing_type'] ?? '',
+      nameTa: e['timing_type'] ?? '',
+      startTime: e['start_time'] ?? '',
+      endTime: e['end_time'] ?? '',
+      isAuspicious: false,
     )).toList();
   }
 
@@ -273,6 +275,32 @@ class SupabaseApiService implements ITNTApiService {
 
   @override
   Future<AdminDashboardMetrics> getAdminDashboardMetrics() async {
-    throw TNTException('Use AdminAnalyticsRepository');
+    if (!_db.isInitialized) throw TNTException('Supabase not initialized');
+
+    try {
+      final nowStr = DateTime.now().toIso8601String().split('T').first;
+
+      final totalUsersRes = await _db.client.from('profiles').select('id').count(CountOption.exact);
+      final activeUsersRes = await _db.client.from('profiles').select('id').eq('is_active', true).count(CountOption.exact);
+      
+      final muhurthamRes = await _db.client.from('muhurtham_dates').select('id').gte('date', nowStr).count(CountOption.exact);
+      final festivalsRes = await _db.client.from('festivals').select('id').gte('date', nowStr).count(CountOption.exact);
+      
+      final contentRes = await _db.client.from('content').select('id').or('status.eq.DRAFT,status.eq.SCHEDULED').count(CountOption.exact);
+      final notifRes = await _db.client.from('notification_campaigns').select('id').eq('status', 'SCHEDULED').count(CountOption.exact);
+
+      return AdminDashboardMetrics(
+        totalUsers: totalUsersRes.count,
+        activeUsers: activeUsersRes.count,
+        upcomingMuhurtham: muhurthamRes.count,
+        upcomingFestivals: festivalsRes.count,
+        pendingContent: contentRes.count,
+        scheduledNotifications: notifRes.count,
+        lastRefreshedAt: DateTime.now(),
+        isLive: true,
+      );
+    } catch (e) {
+      throw TNTException('Failed to load dashboard metrics: $e');
+    }
   }
 }

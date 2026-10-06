@@ -97,21 +97,14 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
   }
 
   void _logAnalyticsEvent(String eventName) async {
-    try {
-      final db = SupabaseService();
-      if (db.isInitialized) {
-        final user = db.client.auth.currentUser;
-        await db.client.from('analytics_events').insert({
-          if (user != null) 'user_id': user.id,
-          'event_name': eventName,
-          'metadata': {
-            'viewed_year': currentMonth.year,
-            'viewed_month': currentMonth.month,
-          },
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (_) {}
+    final analyticsRepo = AnalyticsRepository();
+    await analyticsRepo.logEvent(
+      eventName: eventName,
+      metadata: {
+        'viewed_year': currentMonth.year,
+        'viewed_month': currentMonth.month,
+      },
+    );
   }
 
   void _navigateToDetails(DateTime date) async {

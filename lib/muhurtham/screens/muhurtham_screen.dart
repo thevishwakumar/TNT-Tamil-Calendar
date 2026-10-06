@@ -54,17 +54,8 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
   }
 
   void _triggerAnalytics(String eventName, [Map<String, dynamic>? meta]) async {
-    try {
-      if (_dbService.isInitialized) {
-        final user = _dbService.client.auth.currentUser;
-        await _dbService.client.from('analytics_events').insert({
-          if (user != null) 'user_id': user.id,
-          'event_name': eventName,
-          if (meta != null) 'metadata': meta,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (_) {}
+    final analyticsRepo = AnalyticsRepository();
+    await analyticsRepo.logEvent(eventName: eventName, metadata: meta);
   }
 
   Future<void> _initCategoriesAndData() async {

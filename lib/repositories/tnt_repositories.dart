@@ -658,8 +658,9 @@ class AnalyticsRepository {
     if (!_db.isInitialized) return;
     try {
       final user = _db.client.auth.currentUser;
+      final isAnon = user?.isAnonymous ?? false;
       await _db.client.from('analytics_events').insert({
-        if (user != null) 'user_id': user.id,
+        if (user != null && !isAnon) 'user_id': user.id,
         'event_name': eventName,
         if (contentId != null) 'content_id': contentId,
         if (metadata != null) 'metadata': metadata,

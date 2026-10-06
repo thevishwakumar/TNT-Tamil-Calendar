@@ -59,19 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Triggers non-blocking analytics events
   void _triggerAnalyticsEvent(String eventName) async {
-    try {
-      final user = _dbService.isInitialized ? _dbService.client.auth.currentUser : null;
-      if (_dbService.isInitialized) {
-        await _dbService.client.from('analytics_events').insert({
-          if (user != null) 'user_id': user.id,
-          'event_name': eventName,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-      print('TNT ANALYTICS EVENT LOGGED: $eventName');
-    } catch (_) {
-      // Quietly swallow analytics logs to keep application from crashing
-    }
+    final analyticsRepo = AnalyticsRepository();
+    await analyticsRepo.logEvent(eventName: eventName);
+    print('TNT ANALYTICS EVENT LOGGED: $eventName');
   }
 
   /// Dynamic asynchronous data loader

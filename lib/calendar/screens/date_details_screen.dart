@@ -98,20 +98,13 @@ class _DateDetailsScreenState extends State<DateDetailsScreen> {
   }
 
   void _logAnalyticsEvent(String eventName) async {
-    try {
-      final db = SupabaseService();
-      if (db.isInitialized) {
-        final user = db.client.auth.currentUser;
-        await db.client.from('analytics_events').insert({
-          if (user != null) 'user_id': user.id,
-          'event_name': eventName,
-          'metadata': {
-            'selected_date': widget.date.toIso8601String(),
-          },
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (_) {}
+    final analyticsRepo = AnalyticsRepository();
+    await analyticsRepo.logEvent(
+      eventName: eventName,
+      metadata: {
+        'selected_date': widget.date.toIso8601String(),
+      },
+    );
   }
 
   void _handleShare(TNTLocalizations localizations, bool isTamil) {

@@ -65,7 +65,7 @@ class PanchangamDailyBundle {
       'isFromOfflineCache': isFromOfflineCache,
       'cachedAt': cachedAt?.toIso8601String(),
       'calendarDay': {
-        'gregorian_date': calendarDay.gregorianDate.toIso8601String(),
+        'date': calendarDay.gregorianDate.toIso8601String(),
         'tamil_month': calendarDay.tamilMonth,
         'tamil_year': calendarDay.tamilYear,
         'tamil_day': calendarDay.tamilDay,

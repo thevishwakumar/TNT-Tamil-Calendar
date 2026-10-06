@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/tnt_models.dart';
+import '../repositories/panchang_repository.dart';
 import 'supabase_service.dart';
 
 class SupabaseApiService implements ITNTApiService {
@@ -83,20 +84,10 @@ class SupabaseApiService implements ITNTApiService {
 
   @override
   Future<List<TimingEntry>> getImportantTimings(DateTime date) async {
-    if (!_db.isInitialized) throw TNTException('Supabase not initialized');
-    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    
-    final res = await _db.client.from('timing_entries')
-        .select('*, calendar_days!inner(date)')
-        .eq('calendar_days.date', dateStr);
-    
-    return (res as List).map((e) => TimingEntry(
-      name: e['timing_type'] ?? '',
-      nameTa: e['timing_type'] ?? '',
-      startTime: e['start_time'] ?? '',
-      endTime: e['end_time'] ?? '',
-      isAuspicious: false,
-    )).toList();
+    final panchangRepo = PanchangRepository();
+    final location = UserLocationItem(id: 'default', userId: 'default', name: 'Coimbatore', city: 'Coimbatore', createdAt: DateTime.now(), latitude: 11.0168, longitude: 76.9558, timezone: '+05:30');
+    final bundle = await panchangRepo.getDailyPanchangam(date: date, location: location);
+    return bundle.timings;
   }
 
   @override

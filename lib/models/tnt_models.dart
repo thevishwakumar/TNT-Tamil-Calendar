@@ -264,7 +264,7 @@ class CalendarDay {
 
   factory CalendarDay.fromJson(Map<String, dynamic> json) {
     return CalendarDay(
-      gregorianDate: DateTime.parse(json['gregorian_date'] as String),
+      gregorianDate: DateTime.parse(json['date'] as String),
       tamilMonth: json['tamil_month'] as String,
       tamilYear: json['tamil_year'] as String,
       tamilDay: json['tamil_day'] as int,

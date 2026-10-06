@@ -18,34 +18,15 @@ class _AdminPanchangamScreenState extends State<AdminPanchangamScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
-      appBar: AppBar(
-        title: const Text('Panchangam Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-        backgroundColor: TNTColors.surface,
-        elevation: 0,
-        actions: [ const TNTBrandHeader(), 
-          IconButton(
-            icon: const Icon(Icons.calendar_today_rounded, color: TNTColors.primary),
-            onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate,
-                firstDate: DateTime(2020),
-                lastDate: DateTime(2035),
-              );
-              if (picked != null) setState(() => _selectedDate = picked);
-            },
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: TNTColors.border, height: 1),
-        ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text('Panchangam Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                    ),
             // Selected Date Bar
             Card(
               color: TNTColors.surface,

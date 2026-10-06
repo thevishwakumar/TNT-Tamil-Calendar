@@ -9,6 +9,7 @@ import '../../models/tnt_models.dart';
 import '../../services/supabase_service.dart';
 import 'date_details_screen.dart';
 import '../../core/widgets/responsive_layout.dart';
+import 'package:tnt_tamil_calendar/repositories/tnt_repositories.dart';
 
 class CalendarScreen extends StatefulWidget {
   final ITNTApiService apiService;

@@ -88,21 +88,15 @@ class _AdminBulkImportScreenState extends State<AdminBulkImportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
-      appBar: AppBar(
-        title: const Text('Bulk Dataset Import', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-        backgroundColor: TNTColors.surface,
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: TNTColors.border, height: 1),
-        ),
-      actions: const [TNTBrandHeader()],
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text('Bulk Dataset Import', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                    ),
             // Module Selector
             AdminDropdown<String>(
               label: 'Target Database Table',

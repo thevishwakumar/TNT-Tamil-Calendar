@@ -251,25 +251,6 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
 
     return Scaffold(
       backgroundColor: TNTColors.background,
-      appBar: AppBar(
-        title: Text(
-          isEditing ? 'Edit Campaign' : 'Create Notification Campaign',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
-        ),
-        backgroundColor: TNTColors.surface,
-        elevation: 0,
-        actions: [ const TNTBrandHeader(), 
-          IconButton(
-            tooltip: 'Live Preview',
-            icon: const Icon(Icons.preview_rounded, color: TNTColors.primary),
-            onPressed: _handlePreview,
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: TNTColors.border, height: 1),
-        ),
-      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -278,6 +259,10 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text('Edit Campaign', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                    ),
               // Security & Consent Guidance Banner
               Container(
                 padding: const EdgeInsets.all(12),

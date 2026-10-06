@@ -152,39 +152,6 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
-      appBar: AppBar(
-        title: const Text('Festivals Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-        backgroundColor: TNTColors.surface,
-        elevation: 0,
-        actions: [ const TNTBrandHeader(), 
-          IconButton(
-            icon: const Icon(Icons.file_upload_outlined, color: TNTColors.primary), 
-            onPressed: _handleImport,
-            tooltip: 'Import CSV/Excel',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), 
-            onPressed: () => _loadFestivals(forceRefresh: true),
-            tooltip: 'Refresh from API',
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TNTColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Add Festival', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            onPressed: () => _openFestivalForm(),
-          ),
-          const SizedBox(width: 12),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: TNTColors.border, height: 1),
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: TNTColors.primary))
           : ListView.builder(
@@ -216,6 +183,10 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text('Festivals Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                    ),
                         Text(fest.name, style: const TextStyle(fontSize: 12, color: TNTColors.textSecondary)),
                         const SizedBox(height: 4),
                         Row(

@@ -12,6 +12,7 @@ import '../widgets/muhurtham_date_card.dart';
 import '../widgets/muhurtham_reminder_dialog.dart';
 import '../widgets/muhurtham_share_sheet.dart';
 import 'muhurtham_detail_screen.dart';
+import 'package:tnt_tamil_calendar/repositories/tnt_repositories.dart';
 
 class MuhurthamScreen extends StatefulWidget {
   final ITNTApiService apiService;

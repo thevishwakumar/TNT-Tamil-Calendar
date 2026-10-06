@@ -114,7 +114,6 @@ class _AdminCampaignDetailScreenState extends State<AdminCampaignDetailScreen> {
     if (c == null) {
       return Scaffold(
         backgroundColor: TNTColors.background,
-        appBar: AppBar(title: const Text('Campaign Not Found'), backgroundColor: TNTColors.surface, actions: const [TNTBrandHeader()],),
         body: const Center(child: Text('Requested notification campaign does not exist.')),
       );
     }
@@ -126,54 +125,20 @@ class _AdminCampaignDetailScreenState extends State<AdminCampaignDetailScreen> {
 
     return Scaffold(
       backgroundColor: TNTColors.background,
-      appBar: AppBar(
-        title: Text(
-          c.title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
-        ),
-        backgroundColor: TNTColors.surface,
-        elevation: 0,
-        actions: [ const TNTBrandHeader(), 
-          IconButton(
-            tooltip: 'Live Preview',
-            icon: const Icon(Icons.preview_rounded, color: TNTColors.primary),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => AdminNotificationPreviewDialog(campaign: c),
-              );
-            },
-          ),
-          if (canEdit)
-            IconButton(
-              tooltip: 'Edit Campaign',
-              icon: const Icon(Icons.edit_rounded, color: TNTColors.textPrimary),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AdminCampaignCreateScreen(
-                      initialCampaign: c,
-                      onSaved: () {
-                        widget.onUpdated();
-                        _loadCampaign();
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: TNTColors.border, height: 1),
-        ),
-      ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text('Live Preview', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text('Campaign Not Found', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                    ),
             // Status & Category Header Card
             Card(
               color: TNTColors.surface,

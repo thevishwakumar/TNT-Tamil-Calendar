@@ -10,6 +10,7 @@ import '../../services/supabase_service.dart';
 import '../../special_days/screens/special_day_detail_screen.dart';
 import '../../festivals/screens/festival_detail_screen.dart';
 import '../../muhurtham/screens/muhurtham_detail_screen.dart';
+import 'package:tnt_tamil_calendar/repositories/tnt_repositories.dart';
 
 class DateDetailsScreen extends StatefulWidget {
   final DateTime date;

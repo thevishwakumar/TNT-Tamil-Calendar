@@ -1,0 +1,30 @@
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => SignupScreen(
+                                        authStateManager: widget.authStateManager,
+                                        onSignInTap: () => Navigator.pop(context),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        child: Text(
+                          isTamil ? 'புதிய கணக்கு துவங்குக' : 'Create Account',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: TNTColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

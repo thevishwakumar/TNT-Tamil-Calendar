@@ -1,0 +1,30 @@
+
+    return Scaffold(
+      backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: TNTColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              final provider = TNTLocalizationsProvider.of(context);
+              if (currentLang == AppLanguage.english) {
+                provider?.onLanguageChanged(AppLanguage.tamil);
+              } else {
+                provider?.onLanguageChanged(AppLanguage.english);
+              }
+            },
+            child: Text(
+              currentLang == AppLanguage.english ? '?????' : 'English',
+              style: const TextStyle(color: TNTColors.primary, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(

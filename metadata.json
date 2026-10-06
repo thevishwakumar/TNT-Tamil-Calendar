@@ -1,0 +1,6 @@
+{
+  "name": "TNT Tamil Calendar",
+  "description": "TNT is a scalable production-ready Tamil Calendar, Panchangam, Muhurtham, and Marriage Guidance mobile platform supporting English and Tamil in a premium Light theme.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -115,9 +115,19 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
 
                   );
 
-                  await _repo.saveFestival(saved);
-                  Navigator.of(ctx).pop();
-                  _loadFestivals();
+                  try {
+                    await _repo.saveFestival(saved);
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Festival saved successfully'), backgroundColor: Colors.green),
+                    );
+                    _loadFestivals(forceRefresh: true);
+                  } catch (e) {
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to save festival: $e'), backgroundColor: Colors.red),
+                    );
+                  }
                 },
                 child: const Text('Save Festival'),
               ),

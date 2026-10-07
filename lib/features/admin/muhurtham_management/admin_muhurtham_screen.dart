@@ -82,11 +82,45 @@ class _AdminMuhurthamScreenState extends State<AdminMuhurthamScreen> {
               TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: TNTColors.primary, foregroundColor: Colors.white),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Muhurtham record saved in authorized repository!'), backgroundColor: Colors.green),
-                  );
+                onPressed: () async {
+                  try {
+                    final savedDate = await _repo.saveMuhurthamDate(MuhurthamDate(
+                      id: m?.id ?? '',
+                      date: selectedDate,
+                      tamilDateStr: '', // Not used for insert
+                      category: 'Marriage',
+                      categoryTa: 'முகூர்த்தம்',
+                      description: descCtrl.text.trim(),
+                      descriptionTa: descCtrl.text.trim(),
+                    ));
+                    
+                    final timingStr = timingCtrl.text.trim().split('-');
+                    final st = timingStr.isNotEmpty ? timingStr[0].trim() : '09:00 AM';
+                    final et = timingStr.length > 1 ? timingStr[1].trim() : '10:30 AM';
+                    
+                    await _repo.saveMuhurthamTiming(
+                      savedDate.id,
+                      MuhurthamTimingItem(
+                        id: (m != null && m.timings.isNotEmpty) ? m.timings.first.id : '',
+                        startTime: st,
+                        endTime: et,
+                        lagnam: lagnamCtrl.text.trim(),
+                        nakshatra: nakshatraCtrl.text.trim(),
+                      ),
+                      isNew: (m == null || m.timings.isEmpty),
+                    );
+
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Saved successfully'), backgroundColor: Colors.green),
+                    );
+                    _loadMuhurthams(forceRefresh: true);
+                  } catch (e) {
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red),
+                    );
+                  }
                 },
                 child: const Text('Save Muhurtham'),
               ),

@@ -118,9 +118,19 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                     // isApproved: true,
                   );
 
-                  await _repo.saveSpecialDay(saved);
-                  Navigator.of(ctx).pop();
-                  _loadSpecialDays();
+                  try {
+                    await _repo.saveSpecialDay(saved);
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Special Day saved successfully'), backgroundColor: Colors.green),
+                    );
+                    _loadSpecialDays(forceRefresh: true);
+                  } catch (e) {
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to save special day: $e'), backgroundColor: Colors.red),
+                    );
+                  }
                 },
                 child: const Text('Save Special Day'),
               ),

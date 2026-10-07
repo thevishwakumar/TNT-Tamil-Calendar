@@ -354,10 +354,92 @@
       ]
     },
     {
+      "name": "equatable",
+      "version": "2.1.0",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "xml",
+      "version": "6.6.1",
+      "dependencies": [
+        "collection",
+        "meta",
+        "petitparser"
+      ]
+    },
+    {
       "name": "archive",
       "version": "3.6.1",
       "dependencies": [
         "crypto",
+        "path"
+      ]
+    },
+    {
+      "name": "cross_file",
+      "version": "0.3.5+5",
+      "dependencies": [
+        "meta",
+        "web"
+      ]
+    },
+    {
+      "name": "file_picker_web",
+      "version": "4.0.1",
+      "dependencies": [
+        "cross_file",
+        "file_picker_platform_interface",
+        "flutter",
+        "flutter_web_plugins",
+        "meta",
+        "path",
+        "web"
+      ]
+    },
+    {
+      "name": "windows_file_picker",
+      "version": "2.0.1",
+      "dependencies": [
+        "cross_file",
+        "ffi",
+        "file_picker_platform_interface",
+        "flutter",
+        "meta",
+        "path",
+        "win32"
+      ]
+    },
+    {
+      "name": "file_picker_linux",
+      "version": "2.0.0",
+      "dependencies": [
+        "cross_file",
+        "dbus",
+        "file_picker_platform_interface",
+        "flutter",
+        "path"
+      ]
+    },
+    {
+      "name": "file_picker_darwin",
+      "version": "2.1.2",
+      "dependencies": [
+        "cross_file",
+        "file_picker_platform_interface",
+        "flutter",
+        "path"
+      ]
+    },
+    {
+      "name": "android_file_picker",
+      "version": "2.0.1",
+      "dependencies": [
+        "cross_file",
+        "file_picker_platform_interface",
+        "flutter",
         "path"
       ]
     },
@@ -369,14 +451,6 @@
         "flutter",
         "path",
         "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "cross_file",
-      "version": "0.3.5+5",
-      "dependencies": [
-        "meta",
-        "web"
       ]
     },
     {
@@ -842,6 +916,24 @@
       ]
     },
     {
+      "name": "petitparser",
+      "version": "7.0.2",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "dbus",
+      "version": "0.7.15",
+      "dependencies": [
+        "args",
+        "ffi",
+        "meta",
+        "xml"
+      ]
+    },
+    {
       "name": "plugin_platform_interface",
       "version": "2.1.8",
       "dependencies": [
@@ -887,25 +979,6 @@
       "dependencies": [
         "dbus",
         "meta"
-      ]
-    },
-    {
-      "name": "dbus",
-      "version": "0.7.15",
-      "dependencies": [
-        "args",
-        "ffi",
-        "meta",
-        "xml"
-      ]
-    },
-    {
-      "name": "xml",
-      "version": "6.6.1",
-      "dependencies": [
-        "collection",
-        "meta",
-        "petitparser"
       ]
     },
     {
@@ -1121,6 +1194,11 @@
       ]
     },
     {
+      "name": "args",
+      "version": "2.7.0",
+      "dependencies": []
+    },
+    {
       "name": "package_info_plus_platform_interface",
       "version": "4.1.0",
       "dependencies": [
@@ -1135,19 +1213,6 @@
       "dependencies": [
         "meta",
         "path"
-      ]
-    },
-    {
-      "name": "args",
-      "version": "2.7.0",
-      "dependencies": []
-    },
-    {
-      "name": "petitparser",
-      "version": "7.0.2",
-      "dependencies": [
-        "collection",
-        "meta"
       ]
     },
     {
@@ -1297,71 +1362,6 @@
         "collection",
         "meta",
         "pub_semver"
-      ]
-    },
-    {
-      "name": "windows_file_picker",
-      "version": "2.0.1",
-      "dependencies": [
-        "cross_file",
-        "ffi",
-        "file_picker_platform_interface",
-        "flutter",
-        "meta",
-        "path",
-        "win32"
-      ]
-    },
-    {
-      "name": "file_picker_web",
-      "version": "4.0.1",
-      "dependencies": [
-        "cross_file",
-        "file_picker_platform_interface",
-        "flutter",
-        "flutter_web_plugins",
-        "meta",
-        "path",
-        "web"
-      ]
-    },
-    {
-      "name": "android_file_picker",
-      "version": "2.0.1",
-      "dependencies": [
-        "cross_file",
-        "file_picker_platform_interface",
-        "flutter",
-        "path"
-      ]
-    },
-    {
-      "name": "file_picker_linux",
-      "version": "2.0.0",
-      "dependencies": [
-        "cross_file",
-        "dbus",
-        "file_picker_platform_interface",
-        "flutter",
-        "path"
-      ]
-    },
-    {
-      "name": "file_picker_darwin",
-      "version": "2.1.2",
-      "dependencies": [
-        "cross_file",
-        "file_picker_platform_interface",
-        "flutter",
-        "path"
-      ]
-    },
-    {
-      "name": "equatable",
-      "version": "2.1.0",
-      "dependencies": [
-        "collection",
-        "meta"
       ]
     }
   ],

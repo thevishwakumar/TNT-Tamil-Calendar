@@ -15,8 +15,11 @@ import '../../features/admin/panchangam_management/admin_panchangam_screen.dart'
 import '../../features/admin/calendar_management/admin_calendar_screen.dart';
 import '../../features/admin/notifications/screens/admin_campaigns_screen.dart';
 import '../../features/admin/analytics/screens/admin_analytics_screen.dart';
-import '../../features/admin/schedules/screens/admin_schedules_screen.dart';
 import '../../features/admin/users/screens/admin_users_screen.dart';
+import '../../features/admin/catering/admin_catering_leads_screen.dart';
+import '../../features/catering/repositories/catering_repository.dart';
+
+import '../../features/admin/settings/screens/admin_settings_screen.dart';
 
 /// Available Admin Navigation Sections
 enum AdminSection {
@@ -31,6 +34,7 @@ enum AdminSection {
   users,
   analytics,
   internalSchedules,
+  cateringLeads,
   settings,
 }
 
@@ -54,6 +58,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   AdminSection _currentSection = AdminSection.dashboard;
   AdminDashboardMetrics? _metrics;
+  Map<String, dynamic>? _cateringCounts;
   bool _isLoadingMetrics = true;
   String? _metricsError;
 
@@ -72,9 +77,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     try {
       final data = await _api.getAdminDashboardMetrics();
+      final cCounts = await CateringRepository().getLeadCounts();
       if (mounted) {
         setState(() {
           _metrics = data;
+          _cateringCounts = cCounts;
           _isLoadingMetrics = false;
         });
       }
@@ -113,8 +120,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return 'Admin Analytics';
       case AdminSection.internalSchedules:
         return 'Internal Schedules';
+      case AdminSection.cateringLeads:
+        return 'Catering Leads';
       case AdminSection.settings:
-        return 'Admin Settings';
+        return 'System Settings';
     }
   }
 
@@ -142,8 +151,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return Icons.insights_rounded;
       case AdminSection.internalSchedules:
         return Icons.event_seat_rounded;
+      case AdminSection.cateringLeads:
+        return Icons.room_service_rounded;
       case AdminSection.settings:
-        return Icons.settings_rounded;
+        return Icons.settings_applications_rounded;
     }
   }
 
@@ -329,6 +340,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return const AdminUsersScreen();
       case AdminSection.notifications:
         return const AdminCampaignsScreen();
+      case AdminSection.cateringLeads:
+        return const AdminCateringLeadsScreen();
+      case AdminSection.settings:
+        return const AdminSettingsScreen();
       default:
         return _buildSectionDetail(translate);
     }
@@ -377,20 +392,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
             children: [
               Expanded(
                 child: _buildSummaryCard(
-                  'Total Users',
-                  _isLoadingMetrics ? '...' : (_metrics != null ? '${_metrics!.totalUsers}' : '0'),
-                  Icons.people_alt_rounded,
-                  Colors.blue,
-                  () => setState(() => _currentSection = AdminSection.users),
+                  'Catering Leads',
+                  _isLoadingMetrics ? '...' : (_cateringCounts != null ? '${_cateringCounts!['new']}' : '0'),
+                  Icons.room_service_rounded,
+                  Colors.teal,
+                  () => setState(() => _currentSection = AdminSection.cateringLeads),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _buildSummaryCard(
-                  'Active Users',
-                  _isLoadingMetrics ? '...' : (_metrics != null ? '${_metrics!.activeUsers}' : '0'),
-                  Icons.insights_rounded,
-                  Colors.green,
+                  'Total Users',
+                  _isLoadingMetrics ? '...' : (_metrics != null ? '${_metrics!.totalUsers}' : '0'),
+                  Icons.people_alt_rounded,
+                  Colors.blue,
                   () => setState(() => _currentSection = AdminSection.users),
                 ),
               ),
@@ -402,6 +417,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             children: [
               Expanded(
                 child: _buildSummaryCard(
+                  'Active Users',
+                  _isLoadingMetrics ? '...' : (_metrics != null ? '${_metrics!.activeUsers}' : '0'),
+                  Icons.insights_rounded,
+                  Colors.green,
+                  () => setState(() => _currentSection = AdminSection.users),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildSummaryCard(
                   'Upcoming Muhurtham',
                   _isLoadingMetrics ? '...' : (_metrics != null ? '${_metrics!.upcomingMuhurtham}' : '0'),
                   Icons.favorite_rounded,
@@ -409,7 +434,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   () => setState(() => _currentSection = AdminSection.muhurtham),
                 ),
               ),
-              const SizedBox(width: 10),
+            ],
+          ),
+          const SizedBox(height: 10),
               Expanded(
                 child: _buildSummaryCard(
                   'Upcoming Festivals',
@@ -532,6 +559,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Icons.event_seat_rounded,
                 Colors.brown,
                 () => setState(() => _currentSection = AdminSection.internalSchedules),
+              ),
+              _buildHubCard(
+                'Catering Leads',
+                'Enquiries from Users',
+                Icons.room_service_rounded,
+                Colors.pink,
+                () => setState(() => _currentSection = AdminSection.cateringLeads),
               ),
             ],
           ),

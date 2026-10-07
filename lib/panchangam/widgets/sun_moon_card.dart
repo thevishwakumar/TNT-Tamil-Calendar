@@ -60,23 +60,32 @@ class SunMoonCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.wb_twilight_rounded, size: 18, color: Color(0xFFF57C00)),
-                    const SizedBox(width: 8),
-                    Text(
-                      translate('sun_moon_timings'),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: TNTColors.textPrimary,
+                Flexible(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.wb_twilight_rounded, size: 18, color: Color(0xFFF57C00)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          translate('sun_moon_timings'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: TNTColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                Text(
-                  isTamil ? 'சூரிய & சந்திர இயக்கம்' : 'Celestial Transit',
-                  style: const TextStyle(fontSize: 10, color: Color(0xFFF57C00), fontWeight: FontWeight.w600),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    isTamil ? 'சூரிய & சந்திர இயக்கம்' : 'Celestial Transit',
+                    style: const TextStyle(fontSize: 10, color: Color(0xFFF57C00), fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

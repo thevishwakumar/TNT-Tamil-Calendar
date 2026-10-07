@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../models/tnt_models.dart';
@@ -70,20 +70,26 @@ class PanchangamOverviewCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome_rounded, size: 18, color: TNTColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      translate('panchangam_overview'),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: TNTColors.textPrimary,
+                Flexible(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded, size: 18, color: TNTColors.primary),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          translate('panchangam_overview'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: TNTColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(

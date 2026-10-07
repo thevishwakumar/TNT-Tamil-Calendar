@@ -14,6 +14,8 @@ import '../../notifications/screens/notifications_screen.dart';
 import '../../services/panchang_local_cache_service.dart';
 import '../../features/personal_calendar/screens/personal_calendar_screen.dart';
 import '../../core/widgets/responsive_layout.dart';
+import '../../features/catering/screens/catering_enquiry_screen.dart';
+import '../../features/catering/screens/catering_enquiry_screen.dart';
 
 
 
@@ -338,6 +340,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // 5. Today's Special & Festival Highlights (Database driven, no hardcoding)
               _buildTodaysSpecialHighlight(translate, isTamil),
+              const SizedBox(height: 18),
+              
+              // Catering Integration
+              _buildCateringCard(translate, isTamil),
               const SizedBox(height: 18),
 
               // 6. Upcoming Festivals with VIEW ALL
@@ -1324,6 +1330,83 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         )
       ],
+    );
+  }
+
+  Widget _buildCateringCard(String Function(String) translate, bool isTamil) {
+    return Container(
+      decoration: BoxDecoration(
+        color: TNTColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: TNTColors.border),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CateringEnquiryScreen()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('🍽️', style: TextStyle(fontSize: 24)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Shree Taste & Taste Catering',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: TNTColors.primary),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isTamil ? 'உங்கள் சிறப்பு நிகழ்வுகளை திட்டமிடுங்கள்' : 'Plan your special occasion with our catering team.',
+                            style: const TextStyle(fontSize: 12, color: TNTColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Wedding • Engagement • Seemantham • Functions',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: TNTColors.textMuted),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CateringEnquiryScreen()),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TNTColors.primary,
+                      side: const BorderSide(color: TNTColors.primary),
+                    ),
+                    child: Text(isTamil ? 'நிகழ்வை திட்டமிடுங்கள்' : 'Plan Your Event'),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

@@ -29,81 +29,95 @@ class PanchangamHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // App Title + Module Name
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: TNTColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'T',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: TNTColors.primary,
+                    shape: BoxShape.circle,
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    translate('panchangam'),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: TNTColors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'TNT Tamil Almanac',
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'T',
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: TNTColors.textSecondary.withValues(alpha: 0.8),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-
-          // Location badge & Refresh button
-          Row(
-            children: [
-              InkWell(
-                onTap: onLocationTap,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: TNTColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: TNTColors.primary.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on_rounded, size: 14, color: TNTColors.primary),
-                      const SizedBox(width: 4),
                       Text(
-                        translate(location.toLowerCase()),
+                        translate('panchangam'),
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: TNTColors.primary,
+                          color: TNTColors.textPrimary,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.arrow_drop_down_rounded, size: 16, color: TNTColors.primary),
+                      Text(
+                        'TNT Tamil Almanac',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: TNTColors.textSecondary.withValues(alpha: 0.8),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
-              ),
+              ],
+            ),
+          ),
+
+          // Location badge & Refresh button
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: InkWell(
+                    onTap: onLocationTap,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: TNTColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: TNTColors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 14, color: TNTColors.primary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              translate(location.toLowerCase()),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: TNTColors.primary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.arrow_drop_down_rounded, size: 16, color: TNTColors.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(width: 6),
               IconButton(
                 icon: isRefreshing

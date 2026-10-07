@@ -4,6 +4,7 @@ import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../models/tnt_models.dart';
 import '../../services/supabase_service.dart';
+import '../../features/catering/screens/catering_enquiry_screen.dart';
 import '../widgets/muhurtham_reminder_dialog.dart';
 import '../widgets/muhurtham_share_sheet.dart';
 
@@ -152,6 +153,10 @@ class _MuhurthamDetailScreenState extends State<MuhurthamDetailScreen> {
 
             // E. Astrological Guidance & Important Notes
             _buildNotesCard(isTamil, localizations),
+            const SizedBox(height: 16),
+            
+            // F. Catering Integration
+            _buildCateringCta(isTamil),
             const SizedBox(height: 24),
 
             // Deep link action to Panchangam
@@ -649,5 +654,49 @@ class _MuhurthamDetailScreenState extends State<MuhurthamDetailScreen> {
       ];
       return months[month - 1];
     }
+  }
+
+  Widget _buildCateringCta(bool isTamil) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: TNTColors.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: TNTColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_available, color: TNTColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                isTamil ? 'நிகழ்வை திட்டமிடுகிறீர்களா?' : 'Planning an Event?',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: TNTColors.primary, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => CateringEnquiryScreen(initialDate: _current.date)),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TNTColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(isTamil ? 'கேட்டரிங் தொடர்பு கொள்ள' : 'Contact Catering'),
+            ),
+          )
+        ],
+      ),
+    );
   }
 }

@@ -162,14 +162,44 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: TNTColors.primary,
+        onPressed: () => _openFestivalForm(null),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: TNTColors.primary))
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _festivals.length,
-              itemBuilder: (context, index) {
-                final fest = _festivals[index];
-                return Card(
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Festivals Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.file_upload, size: 18),
+                        label: const Text('Import'),
+                        onPressed: _handleImport,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _festivals.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No Festivals found.\nTap + to add one.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: TNTColors.textMuted, fontSize: 16),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: _festivals.length,
+                          itemBuilder: (context, index) {
+                            final fest = _festivals[index];
+                            return Card(
                   color: TNTColors.surface,
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 10),
@@ -193,10 +223,6 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Festivals Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
                         Text(fest.name, style: const TextStyle(fontSize: 12, color: TNTColors.textSecondary)),
                         const SizedBox(height: 4),
                         Row(
@@ -219,10 +245,14 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
                       icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
                       onPressed: () => _openFestivalForm(fest),
                     ),
+                    ),
                   ),
                 );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 }

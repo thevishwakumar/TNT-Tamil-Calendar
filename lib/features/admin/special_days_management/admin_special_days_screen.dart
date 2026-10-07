@@ -165,14 +165,44 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: TNTColors.primary,
+        onPressed: () => _openSpecialDayForm(null),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: TNTColors.primary))
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _specialDays.length,
-              itemBuilder: (context, index) {
-                final sp = _specialDays[index];
-                return Card(
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Special Days Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.file_upload, size: 18),
+                        label: const Text('Import'),
+                        onPressed: _handleImport,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _specialDays.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No Special Days found.\nTap + to add one.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: TNTColors.textMuted, fontSize: 16),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: _specialDays.length,
+                          itemBuilder: (context, index) {
+                            final sp = _specialDays[index];
+                            return Card(
                   color: TNTColors.surface,
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 10),
@@ -196,10 +226,6 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Special Days Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
                         Text(sp.title, style: const TextStyle(fontSize: 12, color: TNTColors.textSecondary)),
                         const SizedBox(height: 4),
                         Row(
@@ -222,10 +248,14 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                       icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
                       onPressed: () => _openSpecialDayForm(sp),
                     ),
+                    ),
                   ),
                 );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 }

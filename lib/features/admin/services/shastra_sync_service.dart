@@ -54,12 +54,12 @@ class PanchangamSyncService {
       
       return SyncPreviewResult(
         fetched: data['fetched'] ?? 0,
-        valid: data['fetched'] ?? 0, // In edge function, we fetch and map
+        valid: data['valid'] ?? data['fetched'] ?? 0,
         newRecords: data['newRecords'] ?? 0,
         updatedRecords: data['updatedRecords'] ?? 0,
-        skipped: 0,
-        errors: 0,
-        errorDetails: [],
+        skipped: data['skipped'] ?? 0,
+        errors: data['errors'] ?? 0,
+        errorDetails: (data['errorDetails'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
         pendingInserts: [],
         pendingUpdates: [],
         cityCode: cityCode,

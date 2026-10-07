@@ -70,6 +70,9 @@ serve(async (req: Request) => {
       
       let newCount = 0;
       let updateCount = 0;
+      let skippedCount = 0;
+      let validCount = 0;
+      let errorCount = 0;
 
       for (const [key, value] of Object.entries(festivalsMap)) {
         const fest = value as any;
@@ -77,41 +80,73 @@ serve(async (req: Request) => {
         const rule = fest.rule || "";
         const dates: string[] = (fest.local_dates && fest.local_dates[code]) ? fest.local_dates[code] : (fest.dates || []);
         
+        let hasValidDate = false;
+
         for (const date of dates) {
           if (date.startsWith(fetchYear.toString())) {
-            // Check if exists
-            const { data: existing } = await supabase
-              .from('festivals')
-              .select('id, description_english')
-              .eq('date', date)
-              .eq('name_english', nameEn)
-              .maybeSingle();
+            hasValidDate = true;
+            try {
+              // Check if exists
+              const { data: existing, error: selectError } = await supabase
+                .from('festivals')
+                .select('id, description_english')
+                .eq('date', date)
+                .eq('name_english', nameEn)
+                .maybeSingle();
 
-            if (existing) {
-              if (existing.description_english !== rule && rule !== "") {
-                if (!preview_only) {
-                  await supabase
-                    .from('festivals')
-                    .update({ description_english: rule, updated_at: new Date().toISOString() })
-                    .eq('id', existing.id);
+              if (selectError) {
+                console.error("Select error:", selectError);
+                errorCount++;
+                continue;
+              }
+
+              if (existing) {
+                if (existing.description_english !== rule && rule !== "") {
+                  if (!preview_only) {
+                    const { error: updateError } = await supabase
+                      .from('festivals')
+                      .update({ description_english: rule, updated_at: new Date().toISOString() })
+                      .eq('id', existing.id);
+                      
+                    if (updateError) {
+                      console.error("Update error:", updateError);
+                      errorCount++;
+                      continue;
+                    }
+                  }
+                  updateCount++;
+                } else {
+                  skippedCount++;
                 }
-                updateCount++;
+              } else {
+                if (!preview_only) {
+                  const { error: insertError } = await supabase
+                    .from('festivals')
+                    .insert({
+                      date,
+                      name_tamil: nameEn,
+                      name_english: nameEn,
+                      description_english: rule,
+                      is_published: true
+                    });
+                    
+                  if (insertError) {
+                    console.error("Insert error:", insertError);
+                    errorCount++;
+                    continue;
+                  }
+                }
+                newCount++;
               }
-            } else {
-              if (!preview_only) {
-                await supabase
-                  .from('festivals')
-                  .insert({
-                    date,
-                    name_tamil: nameEn,
-                    name_english: nameEn,
-                    description_english: rule,
-                    is_published: true
-                  });
-              }
-              newCount++;
+            } catch (e) {
+              console.error("Row processing error:", e);
+              errorCount++;
             }
           }
+        }
+        
+        if (hasValidDate) {
+          validCount++;
         }
       }
 
@@ -134,6 +169,9 @@ serve(async (req: Request) => {
         newRecords: newCount, 
         updatedRecords: updateCount,
         fetched: Object.keys(festivalsMap).length,
+        valid: validCount,
+        skipped: skippedCount,
+        errors: errorCount,
         is_preview: !!preview_only
       }), { status: 200, headers: corsHeaders });
     }

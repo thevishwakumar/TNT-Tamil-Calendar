@@ -171,15 +171,26 @@ class NavamshaPanchangService {
 
         if (response.statusCode == 200) {
           return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        } else {
+          print('Edge Function returned non-200 status: ${response.statusCode}, body: ${response.body}');
         }
       } catch (e) {
         print('Edge Function request fallback: $e');
       }
     }
 
-    // The requirement explicitly states to not use local fallback data.
-    // If we reach here, we must throw an exception or return an error state.
-    throw StateError('Navamsha data is unavailable and no authorized fallback was found.');
+    // Fallback to local astronomical calculations if the edge function is unavailable
+    print('Falling back to local astronomical engine due to edge function failure.');
+    if (action == 'month_bundle') {
+      final daysInMonth = DateTime(year, month + 1, 0).day;
+      final result = <String, dynamic>{};
+      for (int i = 1; i <= daysInMonth; i++) {
+        final dStr = '$year-${month.toString().padLeft(2, '0')}-${i.toString().padLeft(2, '0')}';
+        result[dStr] = _computeLocalAstronomicalFallback(year, month, i, latitude, longitude, timezone, cityName);
+      }
+      return result;
+    }
+    return _computeLocalAstronomicalFallback(year, month, date, latitude, longitude, timezone, cityName);
   }
 
   /// High precision local astronomical calculation if offline

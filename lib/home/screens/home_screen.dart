@@ -211,7 +211,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 });
                               }
                             },
-                            items: <String>['Chennai', 'Madurai', 'Coimbatore', 'Trichy', 'Salem', 'Tirunelveli']
+                            items: <String>[
+                              'Chennai', 'Madurai', 'Coimbatore', 'Trichy', 'Salem', 'Tirunelveli',
+                              'Tiruppur', 'Erode', 'Vellore', 'Thoothukudi', 'Dindigul', 'Thanjavur', 'Kanyakumari'
+                            ]
                                 .map<DropdownMenuItem<String>>((String val) {
                               return DropdownMenuItem<String>(
                                 value: val,

@@ -1,5 +1,6 @@
 import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
 import '../repositories/admin_content_repository.dart';
@@ -161,6 +162,49 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     }
   }
 
+  void _showTemplateDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TNTColors.surface,
+        title: const Text('Import Template Format'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Upload an Excel (.xlsx) or CSV (.csv) file with the following headers:', style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: Colors.grey.withValues(alpha: 0.1),
+              child: const Text(
+                'date, name, name_tamil, category, description_english, description_tamil\n'
+                '2026-10-10, Amavasai, அமாவாசை, Amavasai, New Moon Day, அமாவாசை விரதம்',
+                style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Note: Dates must be in YYYY-MM-DD format.', style: TextStyle(fontSize: 12, color: TNTColors.textSecondary)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(const ClipboardData(text: 'date,name,name_tamil,category,description_english,description_tamil\n2026-10-10,Amavasai,அமாவாசை,Amavasai,New Moon Day,அமாவாசை விரதம்'));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Template copied to clipboard!')));
+              Navigator.pop(ctx);
+            },
+            child: const Text('Copy CSV Template'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,10 +224,19 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Special Days Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.file_upload, size: 18),
-                        label: const Text('Import'),
-                        onPressed: _handleImport,
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.info_outline, color: TNTColors.primary),
+                            tooltip: 'Template Format',
+                            onPressed: _showTemplateDialog,
+                          ),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.file_upload, size: 18),
+                            label: const Text('Import'),
+                            onPressed: _handleImport,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -244,9 +297,34 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                         ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
-                      onPressed: () => _openSpecialDayForm(sp),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Confirm Delete'),
+                                content: const Text('Are you sure you want to delete this Special Day?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await _repo.deleteSpecialDay(sp.id);
+                              _loadSpecialDays(forceRefresh: true);
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
+                          onPressed: () => _openSpecialDayForm(sp),
+                        ),
+                      ],
                     ),
                   ),
                 );

@@ -27,22 +27,14 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
     final client = _client ?? SupabaseService().client;
 
     try {
-      await client.auth.signInWithOtp(
+      await client.auth.resend(
+        type: OtpType.signup,
         email: email.trim().toLowerCase(),
-        shouldCreateUser: false, // Don't create if doesn't exist? Wait, we need it to create if signing up.
       );
       return true;
     } catch (e) {
-      try {
-        await client.auth.signInWithOtp(
-          email: email.trim().toLowerCase(),
-          shouldCreateUser: true,
-        );
-        return true;
-      } catch (e2) {
-        print('Error sending OTP: ');
-        return false;
-      }
+      print('Error sending OTP: $e');
+      return false;
     }
   }
 
@@ -54,11 +46,11 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
       final response = await client.auth.verifyOTP(
         email: email.trim().toLowerCase(),
         token: otp.trim(),
-        type: OtpType.email,
+        type: OtpType.signup,
       );
-      return response.session != null;
+      return response.session != null || response.user != null;
     } catch (e) {
-      print('Error verifying OTP: ');
+      print('Error verifying OTP: $e');
       return false;
     }
   }

@@ -35,8 +35,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   void initState() {
     super.initState();
     _startCooldown();
-    // Dispatch OTP on initial mount
-    widget.authStateManager.sendEmailOtp();
   }
 
   @override

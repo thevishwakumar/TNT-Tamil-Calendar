@@ -293,26 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String translate(String key) => localizations?.translate(key) ?? key;
     final isTamil = localizations?.language == AppLanguage.tamil;
 
-    // 1. Loading Skeleton / Spinner
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: TNTColors.background,
-        appBar: _buildHeaderBar(translate),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: TNTColors.primary),
-              SizedBox(height: 12),
-              Text(
-                'Loading today astro metrics...',
-                style: TextStyle(fontSize: 12, color: TNTColors.textSecondary, fontWeight: FontWeight.w500),
-              )
-            ],
-          ),
-        ),
-      );
-    }
+    // 1. Removed blocking skeleton to allow instant UI loading
 
     // 2. Safe localized error layout with retry hook
     if (_errorMsg != null) {
@@ -677,6 +658,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPanchangamAspectsGrid(String Function(String) translate, bool isTamil) {
     final pan = _todayPanchangam;
     if (pan == null) {
+      if (_isLoading) {
+        return const TNTLoadingWidget(message: 'Loading Panchangam...');
+      }
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(color: TNTColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: TNTColors.border)),
@@ -812,6 +796,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Important timings table with auspicious indicator dots
   Widget _buildImportantTimingsBlock(String Function(String) translate, bool isTamil) {
+    if (_isLoading && _timings.isEmpty) {
+      return const TNTLoadingWidget(message: 'Loading timings...');
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -862,6 +849,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Today's Special & Festival highlight banner
   Widget _buildTodaysSpecialHighlight(String Function(String) translate, bool isTamil) {
+    if (_isLoading && _specialDays.isEmpty && _festivals.isEmpty) {
+      return const TNTLoadingWidget(message: 'Loading specials...');
+    }
     final now = DateTime.now();
     
     // Find special day or festival matching today
@@ -1076,6 +1066,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Upcoming Festivals list with VIEW ALL
   Widget _buildUpcomingFestivalsBlock(String Function(String) translate, bool isTamil) {
+    if (_isLoading && _festivals.isEmpty) {
+      return const TNTLoadingWidget(message: 'Loading festivals...');
+    }
     if (_festivals.isEmpty) return const SizedBox();
 
     return Column(
@@ -1169,6 +1162,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Upcoming Special Days list with VIEW ALL
   Widget _buildUpcomingSpecialDaysBlock(String Function(String) translate, bool isTamil) {
+    if (_isLoading && _specialDays.isEmpty) {
+      return const TNTLoadingWidget(message: 'Loading special days...');
+    }
     if (_specialDays.isEmpty) return const SizedBox();
 
     return Column(
@@ -1262,6 +1258,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Upcoming Muhurtham preview banner
   Widget _buildMuhurthamPreviewBlock(String Function(String) translate, bool isTamil) {
+    if (_isLoading && _muhurthams.isEmpty) {
+      return const TNTLoadingWidget(message: 'Loading muhurthams...');
+    }
     if (_muhurthams.isEmpty) return const SizedBox();
     final nextM = _muhurthams[0];
 

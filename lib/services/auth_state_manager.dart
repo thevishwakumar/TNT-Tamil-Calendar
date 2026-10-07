@@ -115,8 +115,15 @@ class AuthStateManager extends ChangeNotifier {
   /// Load user profile and evaluate verification stages (Email -> Mobile -> Active)
   Future<void> loadUserSession(String userId, String email) async {
     print('TNT Auth: Starting loadUserSession for $userId');
-    _state = AppAuthState.loading;
-    notifyListeners();
+    
+    // FAST STARTUP: Optimistically unblock UI before network calls
+    final authUser = SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser : null;
+    final isEmailConfirmed = authUser?.emailConfirmedAt != null;
+    
+    if (_state == AppAuthState.loading) {
+      _state = isEmailConfirmed ? AppAuthState.authenticatedUser : AppAuthState.pendingEmailVerification;
+      notifyListeners();
+    }
 
     try {
       final results = await Future.wait([

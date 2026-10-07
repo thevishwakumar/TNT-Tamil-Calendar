@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
-import '../../core/widgets/tnt_loading_overlay.dart';
-import '../../core/widgets/tnt_error_overlay.dart';
 import '../../models/tnt_models.dart';
 import '../../services/supabase_service.dart';
 import '../../special_days/screens/special_days_screen.dart';
@@ -16,7 +14,6 @@ import '../../notifications/screens/notifications_screen.dart';
 import '../../services/panchang_local_cache_service.dart';
 import '../../features/personal_calendar/screens/personal_calendar_screen.dart';
 import '../../core/widgets/responsive_layout.dart';
-import 'package:tnt_tamil_calendar/repositories/tnt_repositories.dart';
 
 
 
@@ -60,9 +57,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Triggers non-blocking analytics events
   void _triggerAnalyticsEvent(String eventName) async {
-    final analyticsRepo = AnalyticsRepository();
-    await analyticsRepo.logEvent(eventName: eventName);
-    print('TNT ANALYTICS EVENT LOGGED: $eventName');
+    try {
+      final user = _dbService.isInitialized ? _dbService.client.auth.currentUser : null;
+      if (_dbService.isInitialized) {
+        await _dbService.client.from('analytics_events').insert({
+          if (user != null) 'user_id': user.id,
+          'event_name': eventName,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+      print('TNT ANALYTICS EVENT LOGGED: $eventName');
+    } catch (_) {
+      // Quietly swallow analytics logs to keep application from crashing
+    }
   }
 
   /// Dynamic asynchronous data loader
@@ -211,10 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 });
                               }
                             },
-                            items: <String>[
-                              'Chennai', 'Madurai', 'Coimbatore', 'Trichy', 'Salem', 'Tirunelveli',
-                              'Tiruppur', 'Erode', 'Vellore', 'Thoothukudi', 'Dindigul', 'Thanjavur', 'Kanyakumari'
-                            ]
+                            items: <String>['Chennai', 'Madurai', 'Coimbatore', 'Trichy', 'Salem', 'Tirunelveli']
                                 .map<DropdownMenuItem<String>>((String val) {
                               return DropdownMenuItem<String>(
                                 value: val,
@@ -324,66 +328,55 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: TNTColors.background,
       appBar: _buildHeaderBar(translate),
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            color: TNTColors.primary,
-            backgroundColor: TNTColors.surface,
-            onRefresh: _handleRefresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  
-                  // 1. Today's prominent Date Card
-                  _buildTodayDateCard(translate, isTamil),
-                  const SizedBox(height: 16),
+      body: RefreshIndicator(
+        color: TNTColors.primary,
+        backgroundColor: TNTColors.surface,
+        onRefresh: _handleRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              
+              // 1. Today's prominent Date Card
+              _buildTodayDateCard(translate, isTamil),
+              const SizedBox(height: 16),
 
-                  // 2. Quick navigation shortcuts
-                  _buildQuickActionsGrid(translate),
-                  const SizedBox(height: 18),
+              // 2. Quick navigation shortcuts
+              _buildQuickActionsGrid(translate),
+              const SizedBox(height: 18),
 
-                  // 3. Today's Panchangam Grid
-                  _buildPanchangamAspectsGrid(translate, isTamil),
-                  const SizedBox(height: 18),
+              // 3. Today's Panchangam Grid
+              _buildPanchangamAspectsGrid(translate, isTamil),
+              const SizedBox(height: 18),
 
-                  // 4. Important auspicious/inauspicious timing details
-                  _buildImportantTimingsBlock(translate, isTamil),
-                  const SizedBox(height: 18),
+              // 4. Important auspicious/inauspicious timing details
+              _buildImportantTimingsBlock(translate, isTamil),
+              const SizedBox(height: 18),
 
-                  // 5. Today's Special & Festival Highlights (Database driven, no hardcoding)
-                  _buildTodaysSpecialHighlight(translate, isTamil),
-                  const SizedBox(height: 18),
+              // 5. Today's Special & Festival Highlights (Database driven, no hardcoding)
+              _buildTodaysSpecialHighlight(translate, isTamil),
+              const SizedBox(height: 18),
 
-                  // 6. Upcoming Festivals with VIEW ALL
-                  _buildUpcomingFestivalsBlock(translate, isTamil),
-                  const SizedBox(height: 18),
+              // 6. Upcoming Festivals with VIEW ALL
+              _buildUpcomingFestivalsBlock(translate, isTamil),
+              const SizedBox(height: 18),
 
-                  // 7. Upcoming Special Days with VIEW ALL
-                  _buildUpcomingSpecialDaysBlock(translate, isTamil),
-                  const SizedBox(height: 18),
+              // 7. Upcoming Special Days with VIEW ALL
+              _buildUpcomingSpecialDaysBlock(translate, isTamil),
+              const SizedBox(height: 18),
 
-                  // 8. Upcoming Muhurtham preview (Strictly from database, avoids ai slop)
-                  _buildMuhurthamPreviewBlock(translate, isTamil),
-                  const SizedBox(height: 18),
+              // 8. Upcoming Muhurtham preview (Strictly from database, avoids ai slop)
+              _buildMuhurthamPreviewBlock(translate, isTamil),
+              const SizedBox(height: 18),
 
-                  // 9. Featured promotional media (Guarded from Draft/Pending timeline)
-                  _buildFeaturedContentCard(translate, isTamil),
-                  const SizedBox(height: 30),
-                ],
-              ),
-            ),
+              // 9. Featured promotional media (Guarded from Draft/Pending timeline)
+              _buildFeaturedContentCard(translate, isTamil),
+              const SizedBox(height: 30),
+            ],
           ),
-          if (_isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
-          if (_errorMsg != null && !_isLoading)
-            Positioned.fill(
-              child: TNTErrorOverlay(
-                onRetry: _loadAllHomeData,
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }

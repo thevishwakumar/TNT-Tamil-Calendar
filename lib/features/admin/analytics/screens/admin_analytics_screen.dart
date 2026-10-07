@@ -564,15 +564,10 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  '${metric.moduleName} (${metric.moduleNameTamil})',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: TNTColors.textPrimary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                '${metric.moduleName} (${metric.moduleNameTamil})',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: TNTColors.textPrimary),
               ),
-              const SizedBox(width: 8),
               Text(
                 '${metric.viewCount} views (${metric.percentage.toStringAsFixed(1)}%)',
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: TNTColors.primary),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../models/tnt_models.dart';
@@ -17,7 +17,7 @@ class PanchangamOverviewCard extends StatelessWidget {
 
   String _getDayName(int weekday, bool isTamil) {
     if (isTamil) {
-      const days = ['திங்கள்', 'செவ்வாய்', 'புதன்', 'வியாழன்', 'வெள்ளி', 'சனி', 'ஞாயிறு'];
+      const days = ['à®¤à®¿à®™à¯à®•à®³à¯', 'à®šà¯†à®µà¯à®µà®¾à®¯à¯', 'à®ªà¯à®¤à®©à¯', 'à®µà®¿à®¯à®¾à®´à®©à¯', 'à®µà¯†à®³à¯à®³à®¿', 'à®šà®©à®¿', 'à®žà®¾à®¯à®¿à®±à¯'];
       return days[weekday - 1];
     } else {
       const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -37,8 +37,8 @@ class PanchangamOverviewCard extends StatelessWidget {
     final yogaValue = isTamil ? panchangam.yogaTa : panchangam.yoga;
     final karanaValue = isTamil ? panchangam.karanaTa : panchangam.karana;
 
-    final tamilMonth = calendarDay?.tamilMonth ?? (isTamil ? 'புரட்டாசி' : 'Purattasi');
-    final tamilYear = calendarDay?.tamilYear ?? (isTamil ? 'குரோதி' : 'Krodhi');
+    final tamilMonth = calendarDay?.tamilMonth ?? (isTamil ? 'à®ªà¯à®°à®Ÿà¯à®Ÿà®¾à®šà®¿' : 'Purattasi');
+    final tamilYear = calendarDay?.tamilYear ?? (isTamil ? 'à®•à¯à®°à¯‹à®¤à®¿' : 'Krodhi');
     final tamilDayNum = calendarDay?.tamilDay ?? date.day;
     final dayOfWeek = _getDayName(date.weekday, isTamil);
 
@@ -122,7 +122,7 @@ class PanchangamOverviewCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildMiniStat(
-                    isTamil ? 'தமிழ் மாதம் & ஆண்டு' : 'Tamil Month & Year',
+                    isTamil ? 'à®¤à®®à®¿à®´à¯ à®®à®¾à®¤à®®à¯ & à®†à®£à¯à®Ÿà¯' : 'Tamil Month & Year',
                     '$tamilMonth, $tamilYear',
                     Icons.calendar_today_rounded,
                   ),
@@ -130,8 +130,8 @@ class PanchangamOverviewCard extends StatelessWidget {
                 Container(width: 1, height: 32, color: TNTColors.border),
                 Expanded(
                   child: _buildMiniStat(
-                    isTamil ? 'கிழமை / நாள்' : 'Day / Tamil Date',
-                    '$dayOfWeek · $tamilDayNum',
+                    isTamil ? 'à®•à®¿à®´à®®à¯ˆ / à®¨à®¾à®³à¯' : 'Day / Tamil Date',
+                    '$dayOfWeek Â· $tamilDayNum',
                     Icons.schedule_rounded,
                   ),
                 ),

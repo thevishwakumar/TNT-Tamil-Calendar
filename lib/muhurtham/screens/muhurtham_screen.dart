@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
-import '../../core/widgets/tnt_loading_overlay.dart';
-import '../../core/widgets/tnt_error_overlay.dart';
 import '../../models/tnt_models.dart';
 import '../../panchangam/widgets/city_selector_sheet.dart';
 import '../../services/supabase_service.dart';
@@ -12,7 +10,6 @@ import '../widgets/muhurtham_date_card.dart';
 import '../widgets/muhurtham_reminder_dialog.dart';
 import '../widgets/muhurtham_share_sheet.dart';
 import 'muhurtham_detail_screen.dart';
-import 'package:tnt_tamil_calendar/repositories/tnt_repositories.dart';
 
 class MuhurthamScreen extends StatefulWidget {
   final ITNTApiService apiService;
@@ -55,8 +52,17 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
   }
 
   void _triggerAnalytics(String eventName, [Map<String, dynamic>? meta]) async {
-    final analyticsRepo = AnalyticsRepository();
-    await analyticsRepo.logEvent(eventName: eventName, metadata: meta);
+    try {
+      if (_dbService.isInitialized) {
+        final user = _dbService.client.auth.currentUser;
+        await _dbService.client.from('analytics_events').insert({
+          if (user != null) 'user_id': user.id,
+          'event_name': eventName,
+          if (meta != null) 'metadata': meta,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _initCategoriesAndData() async {
@@ -114,7 +120,6 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
       setState(() {
         _isLoading = false;
         _isRefreshing = false;
-        print(e.toString());
         _errorMessage = e.toString();
       });
     }
@@ -350,34 +355,30 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
 
             // Main Muhurtham List
             Expanded(
-              child: Stack(
-                children: [
-                  _muhurthams.isEmpty && !_isLoading && _errorMessage == null
-                      ? _buildEmptyState(isTamil, localizations)
-                      : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _muhurthams.length,
-                          itemBuilder: (context, index) {
-                            final item = _muhurthams[index];
-                            return MuhurthamDateCard(
-                              item: item,
-                              onTap: () => _openDetailScreen(item),
-                              onToggleSave: () => _toggleSaveMuhurtham(item),
-                              onSetReminder: () => _openReminderDialog(item),
-                              onShare: () => _openShareSheet(item),
-                            );
-                          },
-                        ),
-                  if (_isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
-                  if (_errorMessage != null && !_isLoading)
-                    Positioned.fill(
-                      child: TNTErrorOverlay(
-                        onRetry: _loadMuhurthams,
-                      ),
-                    ),
-                ],
-              ),
+              child: _isLoading
+                  ? const TNTLoadingWidget()
+                  : _errorMessage != null
+                      ? TNTErrorWidget(
+                          message: _errorMessage!,
+                          onRetry: _loadMuhurthams,
+                        )
+                      : _muhurthams.isEmpty
+                          ? _buildEmptyState(isTamil, localizations)
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _muhurthams.length,
+                              itemBuilder: (context, index) {
+                                final item = _muhurthams[index];
+                                return MuhurthamDateCard(
+                                  item: item,
+                                  onTap: () => _openDetailScreen(item),
+                                  onToggleSave: () => _toggleSaveMuhurtham(item),
+                                  onSetReminder: () => _openReminderDialog(item),
+                                  onShare: () => _openShareSheet(item),
+                                );
+                              },
+                            ),
             ),
           ],
         ),

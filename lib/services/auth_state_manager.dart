@@ -257,6 +257,8 @@ class AuthStateManager extends ChangeNotifier {
           _currentProfile = pendingProfile;
           _state = AppAuthState.pendingEmailVerification;
           notifyListeners();
+          // Automatically dispatch 6-digit Email OTP upon signup
+          await sendEmailOtp();
           return;
         }
       }

@@ -56,6 +56,18 @@ class _AdminAuditScreenState extends State<AdminAuditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        title: const Text('Admin Audit Trail', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+        backgroundColor: TNTColors.surface,
+        elevation: 0,
+        actions: [ const TNTBrandHeader(), 
+          IconButton(icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), onPressed: _loadLogs),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: TNTColors.border, height: 1),
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: TNTColors.primary))
           : _logs.isEmpty
@@ -82,10 +94,6 @@ class _AdminAuditScreenState extends State<AdminAuditScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Admin Audit Trail', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(

@@ -85,6 +85,25 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        title: const Text('Campaign & Content Calendar',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: TNTColors.textPrimary)),
+        backgroundColor: TNTColors.surface,
+        elevation: 0,
+        actions: [ const TNTBrandHeader(), 
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),
+            onPressed: _loadAllCalendarData,
+          )
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: TNTColors.border, height: 1),
+        ),
+      ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: TNTColors.primary))
@@ -97,10 +116,6 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Campaign & Content Calendar', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
                     // Master Calendar Selector
                     Card(
                       color: TNTColors.surface,

@@ -172,6 +172,25 @@ class _AdminContentFormScreenState extends State<AdminContentFormScreen> {
 
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        title: Text(
+          isNew ? 'Create Content Item' : 'Edit Content Item',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
+        ),
+        backgroundColor: TNTColors.surface,
+        elevation: 0,
+        actions: [ const TNTBrandHeader(), 
+          IconButton(
+            tooltip: 'Live Preview',
+            icon: const Icon(Icons.remove_red_eye_outlined, color: TNTColors.primary),
+            onPressed: _openPreview,
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: TNTColors.border, height: 1),
+        ),
+      ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
@@ -180,10 +199,6 @@ class _AdminContentFormScreenState extends State<AdminContentFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Create Content Item', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
               if (_errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),

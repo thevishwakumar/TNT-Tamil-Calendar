@@ -45,17 +45,16 @@ class TNTBrandHeader extends StatelessWidget {
                   },
                 ),
               ),
-              if (screenWidth >= 500) ...[
-                SizedBox(width: spacing),
-                Text(
-                  "TNT Tamil Calendar",
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
+              SizedBox(width: spacing),
+              Text(
+                "TNT Tamil Calendar",
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                  // Inherit color from the AppBar theme or use white if on dark primary
                 ),
-              ],
+              ),
             ],
           ),
         );

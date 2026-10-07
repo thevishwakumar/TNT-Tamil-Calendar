@@ -109,12 +109,40 @@ class _AdminContentScreenState extends State<AdminContentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'Content & Posters Management',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
+        ),
+        backgroundColor: TNTColors.surface,
+        elevation: 0,
+        actions: [ const TNTBrandHeader(), 
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),
+            onPressed: _loadItems,
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TNTColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('New Item', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            onPressed: () => _openCreateEditForm(),
+          ),
+          const SizedBox(width: 12),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: TNTColors.border, height: 1),
+        ),
+      ),
       body: Column(
         children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Content & Posters Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
           // Filter & Search Bar
           Container(
             color: TNTColors.surface,

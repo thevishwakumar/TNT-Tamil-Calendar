@@ -297,7 +297,7 @@ class MuhurthamRepository {
         
         var query = _db.client
             .from('muhurtham_dates')
-            .select('*, timings:muhurtham_timings(*)')
+            .select()
             .eq('is_published', true)
             .gte('date', startDate)
             .lte('date', endDate);
@@ -653,43 +653,13 @@ class ReminderRepository {
 class AnalyticsRepository {
   final SupabaseService _db = SupabaseService();
 
-  static String? _verifiedProfileId;
-  static bool _profileVerified = false;
-
   /// Safe logging for metrics (accessible by anyone / anonymous)
   Future<void> logEvent({required String eventName, String? contentId, Map<String, dynamic>? metadata}) async {
     if (!_db.isInitialized) return;
     try {
       final user = _db.client.auth.currentUser;
-      final isAnon = user?.isAnonymous ?? false;
-      
-      String? finalUserId;
-
-      if (user != null && !isAnon) {
-        if (_verifiedProfileId != user.id) {
-          _verifiedProfileId = user.id;
-          _profileVerified = false;
-        }
-
-        if (_profileVerified) {
-          finalUserId = user.id;
-        } else {
-          final profileRes = await _db.client.from('profiles').select('id').eq('id', user.id).maybeSingle();
-          if (profileRes != null) {
-             _profileVerified = true;
-             finalUserId = user.id;
-          } else {
-             print('Analytics skipped: Profile missing for user ${user.id}');
-             return;
-          }
-        }
-      } else {
-        _verifiedProfileId = null;
-        _profileVerified = false;
-      }
-
       await _db.client.from('analytics_events').insert({
-        if (finalUserId != null) 'user_id': finalUserId,
+        if (user != null) 'user_id': user.id,
         'event_name': eventName,
         if (contentId != null) 'content_id': contentId,
         if (metadata != null) 'metadata': metadata,

@@ -116,6 +116,8 @@ class PanchangamHeader extends StatelessWidget {
                 tooltip: translate('refresh'),
                 onPressed: isRefreshing ? null : onRefreshTap,
               ),
+              const SizedBox(width: 8),
+              const TNTBrandHeader(),
             ],
           ),
         ],

@@ -3,8 +3,6 @@ import '../../core/widgets/responsive_layout.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
-import '../../core/widgets/tnt_loading_overlay.dart';
-import '../../core/widgets/tnt_error_overlay.dart';
 import '../../services/supabase_service.dart';
 import '../models/panchangam_bundle.dart';
 import '../repositories/panchangam_repository.dart';
@@ -90,7 +88,6 @@ class _PanchangamScreenState extends State<PanchangamScreen>
       setState(() {
         _isLoading = false;
         _isRefreshing = false;
-        print(e.toString());
         _errorMessage = e.toString();
       });
     }
@@ -272,19 +269,7 @@ class _PanchangamScreenState extends State<PanchangamScreen>
 
             // Main Body Content
             Expanded(
-              child: Stack(
-                children: [
-                  _buildBody(localizations, isTamil, translate),
-                  if (_isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
-                  if (_errorMessage != null && !_isLoading)
-                    Positioned.fill(
-                      child: TNTErrorOverlay(
-                        onRetry: () => _loadPanchangamData(forceRefresh: true),
-                        overrideMessage: _errorMessage!.contains('No astronomical data') ? _errorMessage : null,
-                      ),
-                    ),
-                ],
-              ),
+              child: _buildBody(localizations, isTamil, translate),
             ),
           ],
         ),
@@ -337,7 +322,16 @@ class _PanchangamScreenState extends State<PanchangamScreen>
     bool isTamil,
     String Function(String) translate,
   ) {
-    // Loading and Error are now handled by overlays in the Stack.
+    if (_isLoading) {
+      return const TNTLoadingWidget();
+    }
+
+    if (_errorMessage != null && _bundle == null) {
+      return TNTErrorWidget(
+        message: _errorMessage!,
+        onRetry: () => _loadPanchangamData(forceRefresh: true),
+      );
+    }
 
     final bundle = _bundle;
     if (bundle == null) {

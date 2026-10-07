@@ -13,19 +13,16 @@ import '../../features/admin/special_days_management/admin_special_days_screen.d
 import '../../features/admin/muhurtham_management/admin_muhurtham_screen.dart';
 import '../../features/admin/panchangam_management/admin_panchangam_screen.dart';
 import '../../features/admin/calendar_management/admin_calendar_screen.dart';
-import '../../features/admin/panchangam_management/admin_panchangam_sync_screen.dart';
 import '../../features/admin/notifications/screens/admin_campaigns_screen.dart';
 import '../../features/admin/analytics/screens/admin_analytics_screen.dart';
 import '../../features/admin/schedules/screens/admin_schedules_screen.dart';
 import '../../features/admin/users/screens/admin_users_screen.dart';
-import '../../features/admin/settings/screens/admin_settings_screen.dart';
 
 /// Available Admin Navigation Sections
 enum AdminSection {
   dashboard,
   calendar,
   panchangam,
-  panchangamSync,
   muhurtham,
   specialDays,
   festivals,
@@ -100,8 +97,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return 'Calendar Management';
       case AdminSection.panchangam:
         return 'Panchangam Management';
-      case AdminSection.panchangamSync:
-        return 'Panchangam Sync';
       case AdminSection.muhurtham:
         return 'Muhurtham Management';
       case AdminSection.specialDays:
@@ -131,8 +126,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return Icons.calendar_month_rounded;
       case AdminSection.panchangam:
         return Icons.wb_sunny_rounded;
-      case AdminSection.panchangamSync:
-        return Icons.sync_rounded;
       case AdminSection.muhurtham:
         return Icons.favorite_rounded;
       case AdminSection.specialDays:
@@ -326,8 +319,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return const AdminMuhurthamScreen();
       case AdminSection.panchangam:
         return const AdminPanchangamScreen();
-      case AdminSection.panchangamSync:
-        return const AdminPanchangamSyncScreen();
       case AdminSection.calendar:
         return const AdminCalendarScreen();
       case AdminSection.analytics:
@@ -338,10 +329,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return const AdminUsersScreen();
       case AdminSection.notifications:
         return const AdminCampaignsScreen();
-      case AdminSection.settings:
-        return AdminSettingsScreen(
-          onBackPressed: () => setState(() => _currentSection = AdminSection.dashboard),
-        );
       default:
         return _buildSectionDetail(translate);
     }

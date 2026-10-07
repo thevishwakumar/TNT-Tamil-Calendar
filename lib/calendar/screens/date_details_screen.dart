@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
-import '../../core/widgets/tnt_loading_overlay.dart';
-import '../../core/widgets/tnt_error_overlay.dart';
 import '../../models/tnt_models.dart';
 import '../../services/supabase_service.dart';
 import '../../special_days/screens/special_day_detail_screen.dart';
 import '../../festivals/screens/festival_detail_screen.dart';
 import '../../muhurtham/screens/muhurtham_detail_screen.dart';
-import 'package:tnt_tamil_calendar/repositories/tnt_repositories.dart';
 
 class DateDetailsScreen extends StatefulWidget {
   final DateTime date;
@@ -99,13 +96,20 @@ class _DateDetailsScreenState extends State<DateDetailsScreen> {
   }
 
   void _logAnalyticsEvent(String eventName) async {
-    final analyticsRepo = AnalyticsRepository();
-    await analyticsRepo.logEvent(
-      eventName: eventName,
-      metadata: {
-        'selected_date': widget.date.toIso8601String(),
-      },
-    );
+    try {
+      final db = SupabaseService();
+      if (db.isInitialized) {
+        final user = db.client.auth.currentUser;
+        await db.client.from('analytics_events').insert({
+          if (user != null) 'user_id': user.id,
+          'event_name': eventName,
+          'metadata': {
+            'selected_date': widget.date.toIso8601String(),
+          },
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (_) {}
   }
 
   void _handleShare(TNTLocalizations localizations, bool isTamil) {
@@ -215,9 +219,38 @@ ${_muhurthams.isNotEmpty ? '💍 ${isTamil ? 'சுப முகூர்த்
         ),
       actions: const [TNTBrandHeader()],
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
+      body: _isLoading
+          ? const TNTLoadingWidget()
+          : _errorMsg != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: TNTColors.primary, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          isTamil 
+                              ? "தகவல்களைப் பெற முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
+                              : "Unable to load information. Please try again.",
+                          style: const TextStyle(fontSize: 14, color: TNTColors.textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadAllDayDetails,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: TNTColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(translate('retry_btn')),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -246,16 +279,7 @@ ${_muhurthams.isNotEmpty ? '💍 ${isTamil ? 'சுப முகூர்த்
                       _buildActionsRow(localizations!, isTamil),
                     ],
                   ),
-          ),
-          if (_isLoading) const Positioned.fill(child: TNTLoadingOverlay()),
-          if (_errorMsg != null && !_isLoading)
-            Positioned.fill(
-              child: TNTErrorOverlay(
-                onRetry: _loadAllDayDetails,
-              ),
-            ),
-        ],
-      ),
+                ),
     );
   }
 

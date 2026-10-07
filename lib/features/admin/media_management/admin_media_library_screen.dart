@@ -196,12 +196,39 @@ class _AdminMediaLibraryScreenState extends State<AdminMediaLibraryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'Media Library',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
+        ),
+        backgroundColor: TNTColors.surface,
+        elevation: 0,
+        actions: [ const TNTBrandHeader(), 
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),
+            onPressed: _loadAssets,
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TNTColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.upload_file_rounded, size: 16),
+            label: const Text('Add Media', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            onPressed: _openUploadDialog,
+          ),
+          const SizedBox(width: 12),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: TNTColors.border, height: 1),
+        ),
+      ),
       body: Column(
         children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Media Library', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
           // Filter Tabs & Search
           Container(
             color: TNTColors.surface,

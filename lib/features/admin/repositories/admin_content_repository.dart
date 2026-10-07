@@ -92,7 +92,24 @@ class AdminContentRepository {
       return saved;
     }
 
-    throw StateError('Offline mock data is not supported in production.');
+    // Dev fallback
+    final now = DateTime.now();
+    if (item.id.isEmpty) {
+      final newItem = item.copyWith(
+        id: 'content-${DateTime.now().millisecondsSinceEpoch}',
+        createdAt: now,
+        updatedAt: now,
+      );
+      throw StateError('Offline mock data is not supported in production.');
+      await logAudit(action: 'CREATE', module: 'CONTENT', recordId: newItem.id, newState: newItem.toJson());
+      return newItem;
+    } else {
+      throw StateError('Offline mock data is not supported in production.'); if (false) {
+        _devContentItems.insert(0, updated);
+      }
+      await logAudit(action: 'UPDATE', module: 'CONTENT', recordId: updated.id, newState: updated.toJson());
+      return updated;
+    }
   }
 
   Future<void> updateContentStatus(String contentId, String newStatus, {DateTime? scheduleTime}) async {
@@ -197,32 +214,20 @@ class AdminContentRepository {
 
   Future<Festival> saveFestival(Festival festival) async {
     if (_db.isInitialized) {
-      final isNew = festival.id.isEmpty || festival.id.startsWith('fest-') || !festival.id.contains('-');
-      final payload = {
-        'date': festival.date.toIso8601String().substring(0, 10),
-        'name_tamil': festival.nameTa.trim().isEmpty ? 'Unknown' : festival.nameTa,
-        'name_english': festival.name.trim().isEmpty ? 'Unknown' : festival.name,
-        'description_tamil': festival.descriptionTa,
-        'description_english': festival.description,
-        'is_published': festival.isPublished,
-      };
-
-      final res = isNew
+      final payload = festival.toJson();
+      final res = festival.id.isEmpty
           ? await _db.client.from('festivals').insert(payload).select().single()
           : await _db.client.from('festivals').update(payload).eq('id', festival.id).select().single();
       final saved = Festival.fromJson(res);
-      await logAudit(action: isNew ? 'CREATE' : 'UPDATE', module: 'FESTIVALS', recordId: saved.id, newState: saved.toJson());
+      await logAudit(action: festival.id.isEmpty ? 'CREATE' : 'UPDATE', module: 'FESTIVALS', recordId: saved.id, newState: saved.toJson());
       return saved;
     }
 
-    throw StateError('Offline mock data is not supported in production.');
-  }
-
-  Future<void> deleteFestival(String id) async {
-    if (_db.isInitialized && id.isNotEmpty) {
-      await _db.client.from('festivals').delete().eq('id', id);
-      await logAudit(action: 'DELETE', module: 'FESTIVALS', recordId: id, newState: {});
+    throw StateError('Offline mock data is not supported in production.'); if (false) {
+      _devFestivals.add(festival);
     }
+    await logAudit(action: 'UPDATE', module: 'FESTIVALS', recordId: festival.id, newState: festival.toJson());
+    return festival;
   }
 
   // ===========================================================================
@@ -237,99 +242,20 @@ class AdminContentRepository {
 
   Future<SpecialDay> saveSpecialDay(SpecialDay sp) async {
     if (_db.isInitialized) {
-      final isNew = sp.id.isEmpty || sp.id.startsWith('sp-') || !sp.id.contains('-'); // Ensure UUID check
-      final payload = {
-        'date': sp.date.toIso8601String().substring(0, 10),
-        'name_tamil': sp.titleTa.trim().isEmpty ? 'Unknown' : sp.titleTa,
-        'name_english': sp.title.trim().isEmpty ? 'Unknown' : sp.title,
-        'category': sp.category,
-        'description_tamil': sp.descriptionTa,
-        'description_english': sp.description,
-        'is_published': sp.isPublished,
-      };
-      
-      try {
-        final res = isNew
-            ? await _db.client.from('special_days').insert(payload).select().single()
-            : await _db.client.from('special_days').update(payload).eq('id', sp.id).select().single();
-        final saved = SpecialDay.fromJson(res);
-        await logAudit(action: isNew ? 'CREATE' : 'UPDATE', module: 'SPECIAL_DAYS', recordId: saved.id, newState: saved.toJson());
-        return saved;
-      } catch (e) {
-        // Fallback for check constraint if category is wrong
-        if (e.toString().contains('special_days_category_check') && isNew) {
-           payload['category'] = 'Amavasai'; // Fallback to safe category
-           final res = await _db.client.from('special_days').insert(payload).select().single();
-           return SpecialDay.fromJson(res);
-        }
-        rethrow;
-      }
+      final payload = sp.toJson();
+      final res = sp.id.isEmpty
+          ? await _db.client.from('special_days').insert(payload).select().single()
+          : await _db.client.from('special_days').update(payload).eq('id', sp.id).select().single();
+      final saved = SpecialDay.fromJson(res);
+      await logAudit(action: sp.id.isEmpty ? 'CREATE' : 'UPDATE', module: 'SPECIAL_DAYS', recordId: saved.id, newState: saved.toJson());
+      return saved;
     }
 
-    throw StateError('Offline mock data is not supported in production.');
-  }
-
-  Future<void> deleteSpecialDay(String id) async {
-    if (_db.isInitialized && id.isNotEmpty) {
-      await _db.client.from('special_days').delete().eq('id', id);
-      await logAudit(action: 'DELETE', module: 'SPECIAL_DAYS', recordId: id, newState: {});
+    throw StateError('Offline mock data is not supported in production.'); if (false) {
+      _devSpecialDays.add(sp);
     }
-  }
-
-  // ===========================================================================
-  // MUHURTHAM MANAGEMENT
-  // ===========================================================================
-
-  Future<MuhurthamDate> saveMuhurthamDate(MuhurthamDate m) async {
-    if (!_db.isInitialized) throw StateError('Offline mock data is not supported in production.');
-    
-    final isNew = m.id.isEmpty || m.id.startsWith('muh-') || !m.id.contains('-'); // uuid check
-    final payload = {
-      'date': m.date.toIso8601String().substring(0, 10),
-      'title_tamil': m.categoryTa,
-      'title_english': m.category,
-      'description_tamil': m.descriptionTa,
-      'description_english': m.description,
-      'is_published': true,
-      'category': m.category,
-      'category_ta': m.categoryTa,
-    };
-
-    final res = isNew
-        ? await _db.client.from('muhurtham_dates').insert(payload).select().single()
-        : await _db.client.from('muhurtham_dates').update(payload).eq('id', m.id).select().single();
-
-    final saved = MuhurthamDate.fromJson(res);
-    await logAudit(action: isNew ? 'CREATE' : 'UPDATE', module: 'MUHURTHAM', recordId: saved.id, newState: res);
-    return saved;
-  }
-
-  Future<void> deleteMuhurthamDate(String id) async {
-    if (_db.isInitialized && id.isNotEmpty) {
-      // Cascade delete might be enabled, but we manually delete timings first to be safe
-      await _db.client.from('muhurtham_timings').delete().eq('muhurtham_date_id', id);
-      await _db.client.from('muhurtham_dates').delete().eq('id', id);
-      await logAudit(action: 'DELETE', module: 'MUHURTHAM', recordId: id, newState: {});
-    }
-  }
-
-  Future<void> saveMuhurthamTiming(String muhurthamDateId, MuhurthamTimingItem t, {bool isNew = true}) async {
-    if (!_db.isInitialized) throw StateError('Offline mock data is not supported in production.');
-    final payload = {
-      'muhurtham_date_id': muhurthamDateId,
-      'start_time': t.startTime,
-      'end_time': t.endTime,
-      'nakshatra': t.nakshatra,
-      'lagnam': t.lagnam,
-      'nalla_neram_start': t.startTime,
-      'nalla_neram_end': t.endTime,
-    };
-
-    if (isNew) {
-      await _db.client.from('muhurtham_timings').insert(payload);
-    } else {
-      await _db.client.from('muhurtham_timings').update(payload).eq('muhurtham_date_id', muhurthamDateId);
-    }
+    await logAudit(action: 'UPDATE', module: 'SPECIAL_DAYS', recordId: sp.id, newState: sp.toJson());
+    return sp;
   }
 
   // ===========================================================================

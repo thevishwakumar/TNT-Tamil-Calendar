@@ -135,7 +135,10 @@ class AdminAnalyticsRepository {
           .order('analytics_date', ascending: true);
 
       final list = (res as List?) ?? [];
-      
+      if (list.isEmpty) {
+        throw StateError('No daily trends found for the selected date range.');
+      }
+
       return list.map((item) => DailyAnalyticsTrend.fromJson(item as Map<String, dynamic>)).toList();
     } catch (e) {
       throw StateError('Failed to load daily trends: $e');

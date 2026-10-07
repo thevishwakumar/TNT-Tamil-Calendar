@@ -203,15 +203,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(title: const Text('Users Management'), actions: const [TNTBrandHeader()],),
       body: RefreshIndicator(
         onRefresh: () => _loadUsers(refresh: true),
         color: TNTColors.primary,
         child: Column(
           children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Users Management', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
             // Search and Role Filters
             Padding(
               padding: const EdgeInsets.all(16.0),

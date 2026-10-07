@@ -97,13 +97,41 @@ class _AdminCampaignsScreenState extends State<AdminCampaignsScreen> with Single
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'Notification Campaigns',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
+        ),
+        backgroundColor: TNTColors.surface,
+        elevation: 0,
+        actions: [ const TNTBrandHeader(), 
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),
+            onPressed: _loadCampaigns,
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          labelColor: TNTColors.primary,
+          unselectedLabelColor: TNTColors.textSecondary,
+          indicatorColor: TNTColors.primary,
+          indicatorWeight: 2.5,
+          tabs: const [
+            Tab(text: 'All Campaigns'),
+            Tab(text: 'Scheduled'),
+            Tab(text: 'Sent'),
+            Tab(text: 'Drafts'),
+            Tab(text: 'Cancelled'),
+            Tab(text: 'Delivery Logs'),
+            Tab(text: 'Analytics'),
+          ],
+        ),
+      ),
       body: TabBarView(
         controller: _tabController,
         children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text('Notification Campaigns', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
-                    ),
           _buildCampaignsTabList(),
           _buildCampaignsTabList(),
           _buildCampaignsTabList(),

@@ -93,22 +93,10 @@ class AdminContentRepository {
     }
 
     // Dev fallback
-    final now = DateTime.now();
     if (item.id.isEmpty) {
-      final newItem = item.copyWith(
-        id: 'content-${DateTime.now().millisecondsSinceEpoch}',
-        createdAt: now,
-        updatedAt: now,
-      );
       throw StateError('Offline mock data is not supported in production.');
-      await logAudit(action: 'CREATE', module: 'CONTENT', recordId: newItem.id, newState: newItem.toJson());
-      return newItem;
     } else {
-      throw StateError('Offline mock data is not supported in production.'); if (false) {
-        _devContentItems.insert(0, updated);
-      }
-      await logAudit(action: 'UPDATE', module: 'CONTENT', recordId: updated.id, newState: updated.toJson());
-      return updated;
+      throw StateError('Offline mock data is not supported in production.');
     }
   }
 

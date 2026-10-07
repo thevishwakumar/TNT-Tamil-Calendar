@@ -60,7 +60,12 @@ class SupabaseApiService implements ITNTApiService {
     final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     final res = await _db.client.from('calendar_days').select().eq('date', dateStr).maybeSingle();
     
-    if (res == null) throw TNTException('No calendar data available for this date');
+    if (res == null) {
+      final panchangRepo = PanchangRepository();
+      final location = UserLocationItem(id: 'default', userId: 'default', name: 'Coimbatore', city: 'Coimbatore', createdAt: DateTime.now(), latitude: 11.0168, longitude: 76.9558, timezone: '+05:30');
+      final bundle = await panchangRepo.getDailyPanchangam(date: date, location: location);
+      return bundle.calendarDay;
+    }
     
     return CalendarDay(
       gregorianDate: DateTime.parse(res['date'] ?? dateStr),
@@ -78,8 +83,10 @@ class SupabaseApiService implements ITNTApiService {
 
   @override
   Future<PanchangamEntry> getPanchangam(DateTime date) async {
-    // Relies on local calculation fallback as established in Phase 3
-    throw TNTException('Panchangam should use NavamshaPanchangService local engine calculation fallback');
+    final panchangRepo = PanchangRepository();
+    final location = UserLocationItem(id: 'default', userId: 'default', name: 'Coimbatore', city: 'Coimbatore', createdAt: DateTime.now(), latitude: 11.0168, longitude: 76.9558, timezone: '+05:30');
+    final bundle = await panchangRepo.getDailyPanchangam(date: date, location: location);
+    return bundle.panchangam;
   }
 
   @override
@@ -200,16 +207,16 @@ class SupabaseApiService implements ITNTApiService {
     
     final res = await query.order('date', ascending: true);
     
-        return (res as List).map((e) => SpecialDay(
+    return (res as List).map((e) => SpecialDay(
       id: e['id'],
       date: DateTime.parse(e['date']),
-      title: e['name'] ?? '',
-      titleTa: e['name_ta'] ?? e['name'] ?? '',
+      title: e['name_english'] ?? e['name'] ?? '',
+      titleTa: e['name_tamil'] ?? e['name_ta'] ?? '',
       category: e['category'] ?? '',
       categoryTa: e['category_ta'] ?? e['category'] ?? '',
-      isHoliday: false,
-      description: e['significance'] ?? '',
-      descriptionTa: e['significance_ta'] ?? '',
+      isHoliday: e['is_holiday'] ?? false,
+      description: e['description_english'] ?? e['significance'] ?? '',
+      descriptionTa: e['description_tamil'] ?? e['significance_ta'] ?? '',
     )).toList();
   }
 
@@ -226,14 +233,14 @@ class SupabaseApiService implements ITNTApiService {
     
     final res = await query.order('date', ascending: true);
     
-        return (res as List).map((e) => Festival(
+    return (res as List).map((e) => Festival(
       id: e['id'],
       date: DateTime.parse(e['date']),
-      name: e['name'] ?? '',
-      nameTa: e['name_ta'] ?? e['name'] ?? '',
-      type: e['category'] ?? 'hindu',
-      description: e['description'] ?? '',
-      descriptionTa: e['description_ta'] ?? '',
+      name: e['name_english'] ?? e['name'] ?? '',
+      nameTa: e['name_tamil'] ?? e['name_ta'] ?? '',
+      type: e['type'] ?? e['category'] ?? 'hindu',
+      description: e['description_english'] ?? e['description'] ?? '',
+      descriptionTa: e['description_tamil'] ?? e['description_ta'] ?? '',
       category: e['category'] ?? '',
       categoryTa: e['category_ta'] ?? e['category'] ?? '',
     )).toList();

@@ -47,7 +47,7 @@ class PanchangamSyncService {
         },
       );
       
-      if (res.error != null) throw Exception(res.error!.message);
+      if (res.status != null && res.status! >= 400) throw Exception('Function failed with status ${res.status}');
       
       final data = res.data;
       if (data['error'] != null) throw Exception(data['error']);
@@ -89,7 +89,7 @@ class PanchangamSyncService {
         },
       );
       
-      if (res.error != null) throw Exception(res.error!.message);
+      if (res.status != null && res.status! >= 400) throw Exception('Function failed with status ${res.status}');
       final data = res.data;
       if (data['error'] != null) throw Exception(data['error']);
       

@@ -275,7 +275,7 @@ class AdminContentRepository {
         : await _db.client.from('muhurtham_dates').update(payload).eq('id', m.id).select().single();
 
     final saved = MuhurthamDate.fromJson(res);
-    await logAudit(action: isNew ? 'CREATE' : 'UPDATE', module: 'MUHURTHAM', recordId: saved.id, newState: saved.toJson());
+    await logAudit(action: isNew ? 'CREATE' : 'UPDATE', module: 'MUHURTHAM', recordId: saved.id, newState: res);
     return saved;
   }
 
@@ -294,7 +294,7 @@ class AdminContentRepository {
     if (isNew) {
       await _db.client.from('muhurtham_timings').insert(payload);
     } else {
-      await _db.client.from('muhurtham_timings').update(payload).eq('id', t.id);
+      await _db.client.from('muhurtham_timings').update(payload).eq('muhurtham_date_id', muhurthamDateId);
     }
   }
 

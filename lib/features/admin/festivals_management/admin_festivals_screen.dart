@@ -245,7 +245,6 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
                       icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
                       onPressed: () => _openFestivalForm(fest),
                     ),
-                    ),
                   ),
                 );
               },

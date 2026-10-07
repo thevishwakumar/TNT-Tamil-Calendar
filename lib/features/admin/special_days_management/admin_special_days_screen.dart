@@ -248,7 +248,6 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                       icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
                       onPressed: () => _openSpecialDayForm(sp),
                     ),
-                    ),
                   ),
                 );
               },

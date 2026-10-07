@@ -84,6 +84,10 @@ class _AdminMuhurthamScreenState extends State<AdminMuhurthamScreen> {
                 style: ElevatedButton.styleFrom(backgroundColor: TNTColors.primary, foregroundColor: Colors.white),
                 onPressed: () async {
                   try {
+                    final timingStr = timingCtrl.text.trim().split('-');
+                    final st = timingStr.isNotEmpty ? timingStr[0].trim() : '09:00 AM';
+                    final et = timingStr.length > 1 ? timingStr[1].trim() : '10:30 AM';
+
                     final savedDate = await _repo.saveMuhurthamDate(MuhurthamDate(
                       id: m?.id ?? '',
                       date: selectedDate,
@@ -92,20 +96,23 @@ class _AdminMuhurthamScreenState extends State<AdminMuhurthamScreen> {
                       categoryTa: 'முகூர்த்தம்',
                       description: descCtrl.text.trim(),
                       descriptionTa: descCtrl.text.trim(),
+                      startTime: st,
+                      endTime: et,
+                      isValarthirai: m?.isValarthirai ?? true,
                     ));
-                    
-                    final timingStr = timingCtrl.text.trim().split('-');
-                    final st = timingStr.isNotEmpty ? timingStr[0].trim() : '09:00 AM';
-                    final et = timingStr.length > 1 ? timingStr[1].trim() : '10:30 AM';
                     
                     await _repo.saveMuhurthamTiming(
                       savedDate.id,
                       MuhurthamTimingItem(
-                        id: (m != null && m.timings.isNotEmpty) ? m.timings.first.id : '',
                         startTime: st,
                         endTime: et,
+                        duration: '1h 30m',
                         lagnam: lagnamCtrl.text.trim(),
+                        lagnamTa: lagnamCtrl.text.trim(),
                         nakshatra: nakshatraCtrl.text.trim(),
+                        nakshatraTa: nakshatraCtrl.text.trim(),
+                        subhaHorai: '',
+                        subhaHoraiTa: '',
                       ),
                       isNew: (m == null || m.timings.isEmpty),
                     );

@@ -76,6 +76,43 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     }
   }
 
+  Future<void> _confirmDeleteSpecialDay(SpecialDay sp) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: TNTColors.surface,
+        title: const Text('Delete Special Day?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete "${sp.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await _repo.deleteSpecialDay(sp.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Special day deleted successfully'), backgroundColor: Colors.green));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        }
+      }
+      _loadSpecialDays();
+    }
+  }
+
   void _openSpecialDayForm([SpecialDay? sp]) {
     final nameTaCtrl = TextEditingController(text: sp?.titleTa ?? '');
     final nameEnCtrl = TextEditingController(text: sp?.title ?? '');
@@ -175,11 +212,29 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
         title: const Text('Special Days Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
         backgroundColor: TNTColors.surface,
         elevation: 0,
-        actions: [  
+                actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), 
+            icon: const Icon(Icons.download_rounded, color: TNTColors.primary),
+            tooltip: 'Download CSV Template',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('CSV Format: date (YYYY-MM-DD), name_ta, name_en, category, desc_ta, desc_en')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file_rounded, color: TNTColors.primary),
+            tooltip: 'Bulk Upload CSV',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Use Bulk Import tool in Admin Settings for large uploads.')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),
             onPressed: () => _loadSpecialDays(forceRefresh: true),
-            tooltip: 'Refresh from Navamsha API',
+            tooltip: 'Refresh',
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(

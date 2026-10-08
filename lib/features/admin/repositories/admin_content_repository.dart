@@ -380,4 +380,22 @@ class AdminContentRepository {
       );
     }
   }
+
+  Future<bool> deleteSpecialDay(String id) async {
+    if (_db.isInitialized) {
+      await _db.client.from('special_days').delete().eq('id', id);
+      await logAudit(action: 'DELETE', module: 'SPECIAL_DAYS', recordId: id);
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> deleteFestival(String id) async {
+    if (_db.isInitialized) {
+      await _db.client.from('festivals').delete().eq('id', id);
+      await logAudit(action: 'DELETE', module: 'FESTIVALS', recordId: id);
+      return true;
+    }
+    return false;
+  }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../models/tnt_models.dart';
 import '../../../services/supabase_service.dart';
 import '../../../core/authorization/admin_authorization_service.dart';
@@ -432,6 +433,7 @@ class AdminContentRepository {
             date: parsedDate,
             name: rec['name_english']?.toString() ?? rec['name']?.toString() ?? '',
             nameTa: rec['name_tamil']?.toString() ?? rec['name_ta']?.toString() ?? '',
+            type: rec['type']?.toString() ?? rec['category']?.toString() ?? 'Festivals',
             description: rec['description_english']?.toString() ?? rec['description']?.toString() ?? '',
             descriptionTa: rec['description_tamil']?.toString() ?? rec['description_ta']?.toString() ?? '',
             category: rec['category']?.toString() ?? 'Festivals',

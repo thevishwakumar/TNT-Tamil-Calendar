@@ -213,20 +213,15 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
 
     if (choice == 'file') {
       try {
-        final result = await FilePicker.platform.pickFiles(
+        final result = await FilePicker.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['csv', 'txt', 'xls', 'xlsx'],
-          withData: true,
         );
 
-        if (result == null || result.files.isEmpty) return;
+        if (result.isEmpty) return;
 
-        final file = result.files.first;
-        if (file.bytes != null) {
-          csvString = utf8.decode(file.bytes!);
-        } else if (file.path != null) {
-          csvString = await File(file.path!).readAsString();
-        }
+        final file = result.first;
+        csvString = await file.xFile.readAsString();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File read error: $e')));
@@ -283,7 +278,7 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     int failed = 0;
 
     try {
-      final lines = const CsvToListConverter(eol: '\n', shouldParseNumbers: false).convert(raw);
+      final lines = CsvDecoder().convert(raw);
       if (lines.isEmpty) {
         throw Exception('CSV content is empty');
       }

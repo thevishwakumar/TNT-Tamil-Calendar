@@ -39,6 +39,43 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     }
   }
 
+  Future<void> _confirmDeleteSpecialDay(SpecialDay sp) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: TNTColors.surface,
+        title: const Text('Delete Special Day?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete "${sp.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await _repo.deleteSpecialDay(sp.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Special day deleted successfully'), backgroundColor: Colors.green));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        }
+      }
+      _loadSpecialDays();
+    }
+  }
+
   void _openSpecialDayForm([SpecialDay? sp]) {
     final nameTaCtrl = TextEditingController(text: sp?.titleTa ?? '');
     final nameEnCtrl = TextEditingController(text: sp?.title ?? '');
@@ -211,9 +248,20 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                         ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
-                      onPressed: () => _openSpecialDayForm(sp),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
+                          tooltip: 'Edit',
+                          onPressed: () => _openSpecialDayForm(sp),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                          tooltip: 'Delete',
+                          onPressed: () => _confirmDeleteSpecialDay(sp),
+                        ),
+                      ],
                     ),
                   ),
                 );

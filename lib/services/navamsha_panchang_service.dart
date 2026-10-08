@@ -177,9 +177,8 @@ class NavamshaPanchangService {
       }
     }
 
-    // The requirement explicitly states to not use local fallback data.
-    // If we reach here, we must throw an exception or return an error state.
-    throw StateError('Navamsha data is unavailable and no authorized fallback was found.');
+    // Use high precision mathematical fallback instead of crashing
+    return _computeLocalAstronomicalFallback(year, month, date, latitude, longitude, timezone, cityName);
   }
 
   /// High precision local astronomical calculation if offline

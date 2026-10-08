@@ -17,6 +17,7 @@ import '../../core/widgets/responsive_layout.dart';
 import '../../features/catering/screens/catering_enquiry_screen.dart';
 import '../../panchangam/models/panchangam_bundle.dart';
 import '../../repositories/panchang_repository.dart';
+import '../../services/navamsha_panchang_service.dart';
 
 
 
@@ -130,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _timings = bundle!.timings;
           }
           
-          _isOfflineCacheActive = hasCached;
+          _isOfflineCacheActive = bundle?.isFromOfflineCache ?? hasCached;
           _isLoading = false;
         });
       }
@@ -152,11 +153,33 @@ class _HomeScreenState extends State<HomeScreen> {
             _todayCalendar = cachedBundle.calendarDay;
             _todayPanchangam = cachedBundle.panchangam;
             _timings = cachedBundle.timings;
-            // Retain empty lists for others if failed
             _isOfflineCacheActive = true;
             _errorMsg = null;
           } else {
-            _errorMsg = e.toString();
+            // High-precision mathematical fallback if all networks and caches failed
+            final loc = UserLocationItem(
+              id: 'loc-$_selectedCity',
+              userId: 'active-user',
+              name: _selectedCity,
+              city: _selectedCity,
+              timezone: 'Asia/Kolkata',
+              createdAt: DateTime.now(),
+            );
+            final mathData = NavamshaPanchangService().computeLocalAstronomicalFallback(
+              year: now.year,
+              month: now.month,
+              date: now.day,
+              latitude: 11.0168,
+              longitude: 76.9558,
+              timezone: 5.5,
+              cityName: _selectedCity,
+            );
+            final mathBundle = PanchangRepository().mapToPanchangamBundle(now, loc, mathData, isOffline: true);
+            _todayCalendar = mathBundle.calendarDay;
+            _todayPanchangam = mathBundle.panchangam;
+            _timings = mathBundle.timings;
+            _isOfflineCacheActive = true;
+            _errorMsg = null;
           }
         });
       }

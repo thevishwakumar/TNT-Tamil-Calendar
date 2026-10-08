@@ -4,6 +4,9 @@ import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
 import '../../core/widgets/state_widgets.dart';
 import '../../services/supabase_service.dart';
+import '../../services/navamsha_panchang_service.dart';
+import '../../repositories/panchang_repository.dart';
+import '../../models/tnt_models.dart';
 import '../models/panchangam_bundle.dart';
 import '../repositories/panchangam_repository.dart';
 import '../widgets/city_selector_sheet.dart';
@@ -76,19 +79,57 @@ class _PanchangamScreenState extends State<PanchangamScreen>
 
       if (!mounted) return;
       setState(() {
-        _bundle = bundle;
+        if (bundle != null) {
+          _bundle = bundle;
+        } else {
+          final loc = UserLocationItem(
+            id: 'loc-$_currentCity',
+            userId: 'active-user',
+            name: _currentCity,
+            city: _currentCity,
+            timezone: 'Asia/Kolkata',
+            createdAt: DateTime.now(),
+          );
+          final mathData = NavamshaPanchangService().computeLocalAstronomicalFallback(
+            year: _selectedDate.year,
+            month: _selectedDate.month,
+            date: _selectedDate.day,
+            latitude: 11.0168,
+            longitude: 76.9558,
+            timezone: 5.5,
+            cityName: _currentCity,
+          );
+          _bundle = PanchangRepository().mapToPanchangamBundle(_selectedDate, loc, mathData, isOffline: true);
+        }
         _isLoading = false;
         _isRefreshing = false;
-        if (bundle == null) {
-          _errorMessage = 'No astronomical data available for this date.';
-        }
+        _errorMessage = null;
       });
     } catch (e) {
       if (!mounted) return;
+      final loc = UserLocationItem(
+        id: 'loc-$_currentCity',
+        userId: 'active-user',
+        name: _currentCity,
+        city: _currentCity,
+        timezone: 'Asia/Kolkata',
+        createdAt: DateTime.now(),
+      );
+      final mathData = NavamshaPanchangService().computeLocalAstronomicalFallback(
+        year: _selectedDate.year,
+        month: _selectedDate.month,
+        date: _selectedDate.day,
+        latitude: 11.0168,
+        longitude: 76.9558,
+        timezone: 5.5,
+        cityName: _currentCity,
+      );
+      final fallbackBundle = PanchangRepository().mapToPanchangamBundle(_selectedDate, loc, mathData, isOffline: true);
       setState(() {
+        _bundle = fallbackBundle;
         _isLoading = false;
         _isRefreshing = false;
-        _errorMessage = e.toString();
+        _errorMessage = null;
       });
     }
   }

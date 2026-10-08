@@ -79,7 +79,19 @@ class SupabasePanchangamProvider implements PanchangamDataProvider {
       );
     } catch (e, stack) {
       print('SupabasePanchangamProvider Error: $e\n$stack');
-      rethrow;
+      try {
+        final fallbackUserLocation = UserLocationItem(
+          id: 'loc-$location',
+          userId: 'active-user',
+          name: location,
+          city: location,
+          timezone: 'Asia/Kolkata',
+          createdAt: DateTime.now(),
+        );
+        return await _panchangRepo.getDailyPanchangam(date: date, location: fallbackUserLocation);
+      } catch (_) {
+        rethrow;
+      }
     }
   }
 }

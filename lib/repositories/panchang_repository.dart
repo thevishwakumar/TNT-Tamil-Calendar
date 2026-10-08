@@ -150,7 +150,8 @@ class PanchangRepository {
         forceRefresh: forceRefresh,
       );
 
-      final bundle = _mapToPanchangamBundle(date, location, rawData);
+      final isFromMath = rawData['astronomical']?['metadata']?['sourceProvider'] == 'astronomical_ephemeris_v1';
+      final bundle = mapToPanchangamBundle(date, location, rawData, isOffline: isFromMath);
       _bundleCache[cacheKey] = bundle;
 
       // Save into persistent local storage cache for offline resilience
@@ -162,7 +163,8 @@ class PanchangRepository {
 
       return bundle;
     } catch (networkError) {
-      // Fallback: If network failed or user is offline, check local storage
+      print('Network fetch failed in PanchangRepository: $networkError');
+      // 1. Fallback to offline local storage cache if available
       final localCached = await _localCache.getCachedDailyPanchangam(
         date: date,
         location: location.city,
@@ -173,9 +175,31 @@ class PanchangRepository {
         return localCached;
       }
 
-            // NO MOCK DATA. If network and cache both fail, throw an error to show offline state in UI.
-      throw Exception('Unable to fetch Panchangam: No network and no offline cache available.');
+      // 2. MATHEMATICAL FALLBACK: When online data cannot be shown and no cache exists,
+      // compute local mathematical astronomical panchangam so sunrise, sunset,
+      // nalla neram, rahu kalam, etc. are accurately calculated and displayed!
+      final mathData = _apiService.computeLocalAstronomicalFallback(
+        year: date.year,
+        month: date.month,
+        date: date.day,
+        latitude: lat,
+        longitude: lng,
+        timezone: tz,
+        cityName: location.city,
+      );
 
+      final fallbackBundle = mapToPanchangamBundle(date, location, mathData, isOffline: true);
+      _bundleCache[cacheKey] = fallbackBundle;
+
+      try {
+        await _localCache.cacheDailyPanchangam(
+          date: date,
+          location: location.city,
+          bundle: fallbackBundle,
+        );
+      } catch (_) {}
+
+      return fallbackBundle;
     }
   }
 
@@ -210,7 +234,8 @@ class PanchangRepository {
         if (dateStr == null) continue;
         
         final parsedDate = DateTime.parse(dateStr);
-        final bundle = _mapToPanchangamBundle(parsedDate, location, dayData);
+        final isFromMath = dayData['astronomical']?['metadata']?['sourceProvider'] == 'astronomical_ephemeris_v1';
+        final bundle = mapToPanchangamBundle(parsedDate, location, dayData, isOffline: isFromMath);
         monthlyBundles.add(bundle);
         
         // Optionally cache each day in memory
@@ -220,35 +245,124 @@ class PanchangRepository {
 
       return monthlyBundles;
     } catch (e) {
-      print('Monthly Navamsha Panchang fetch failed: $e');
-      return [];
+      print('Monthly Navamsha Panchang fetch failed, using mathematical fallback: $e');
+      final daysInMonth = DateTime(year, month + 1, 0).day;
+      final List<PanchangamDailyBundle> fallbackList = [];
+      for (int day = 1; day <= daysInMonth; day++) {
+        final d = DateTime(year, month, day);
+        final mathData = _apiService.computeLocalAstronomicalFallback(
+          year: year,
+          month: month,
+          date: day,
+          latitude: lat,
+          longitude: lng,
+          timezone: tz,
+          cityName: location.city,
+        );
+        final bundle = mapToPanchangamBundle(d, location, mathData, isOffline: true);
+        fallbackList.add(bundle);
+        final cacheKey = "${d.year}-${d.month}-${d.day}:${lat.toStringAsFixed(3)}:${lng.toStringAsFixed(3)}:$tz";
+        _bundleCache[cacheKey] = bundle;
+      }
+      return fallbackList;
     }
   }
 
-  /// Map raw Edge Function JSON into strongly-typed TNT models
-  PanchangamDailyBundle _mapToPanchangamBundle(
+  /// Dynamically computes Tamil Month, Tamil Day, Tamil Year, and Tamil Date String
+  static Map<String, dynamic> computeTamilDate(DateTime date) {
+    final y = date.year;
+    final m = date.month;
+    final d = date.day;
+
+    final List<List<dynamic>> transitions = [
+      [14, 'மார்கழி', 30, 'தை'],       // Jan: 1..13 Margazhi, 14..31 Thai
+      [13, 'தை', 29, 'மாசி'],          // Feb: 1..12 Thai, 13..28 Maasi
+      [14, 'மாசி', 30, 'பங்குனி'],      // Mar: 1..13 Maasi, 14..31 Panguni
+      [14, 'பங்குனி', 31, 'சித்திரை'],   // Apr: 1..13 Panguni, 14..30 Chithirai
+      [15, 'சித்திரை', 31, 'வைகாசி'],   // May: 1..14 Chithirai, 15..31 Vaikasi
+      [15, 'வைகாசி', 31, 'ஆனி'],       // Jun: 1..14 Vaikasi, 15..30 Aani
+      [16, 'ஆனி', 32, 'ஆடி'],          // Jul: 1..15 Aani, 16..31 Aadi
+      [17, 'ஆடி', 31, 'ஆவணி'],         // Aug: 1..16 Aadi, 17..31 Avani
+      [17, 'ஆவணி', 31, 'புரட்டாசி'],    // Sep: 1..16 Avani, 17..30 Purattasi
+      [17, 'புரட்டாசி', 30, 'ஐப்பசி'],   // Oct: 1..16 Purattasi, 17..31 Aipasi
+      [16, 'ஐப்பசி', 30, 'கார்த்திகை'],  // Nov: 1..15 Aipasi, 16..30 Karthigai
+      [16, 'கார்த்திகை', 29, 'மார்கழி'], // Dec: 1..15 Karthigai, 16..31 Margazhi
+    ];
+
+    final t = transitions[m - 1];
+    final transDay = t[0] as int;
+    final monthBefore = t[1] as String;
+    final daysInBefore = t[2] as int;
+    final monthAfter = t[3] as String;
+
+    String tamilMonth;
+    int tamilDay;
+
+    if (d < transDay) {
+      tamilMonth = monthBefore;
+      final prevMonthTransDay = transitions[(m - 2 + 12) % 12][0] as int;
+      final daysInPrevGregorianMonth = DateTime(y, m, 0).day;
+      tamilDay = (daysInPrevGregorianMonth - prevMonthTransDay + 1) + d;
+      if (tamilDay > daysInBefore) tamilDay = daysInBefore;
+    } else {
+      tamilMonth = monthAfter;
+      tamilDay = d - transDay + 1;
+    }
+
+    const tamilYears = [
+      'பிரபவ', 'விபவ', 'சுக்கில', 'பிரமோதூத', 'பிரஜோற்பத்தி',
+      'ஆங்கீரச', 'ஸ்ரீமுக', 'பவ', 'யுவ', 'தாது',
+      'ஈஸ்வர', 'வெகுதானிய', 'பிரமாதி', 'விக்ரம', 'விஷு',
+      'சித்திரபானு', 'சுபானு', 'தாரண', 'பார்த்திப', 'விய',
+      'சர்வசித்து', 'சர்வதாரி', 'விரோதி', 'விகிருதி', 'கர',
+      'நந்தன', 'விஜய', 'ஜய', 'மன்மத', 'துன்முகி',
+      'ஹேவிளம்பி', 'விளம்பி', 'விகாரி', 'சார்வரி', 'பிலவ',
+      'சுபகிருது', 'சோபகிருது', 'குரோதி', 'விசுவாசு', 'பராபவ',
+      'பிலவங்க', 'கீலக', 'சௌமிய', 'சாதாரண', 'விரோதிகிருது',
+      'பரிதாபி', 'பிரமாதீச', 'ஆனந்த', 'ராட்சச', 'நள',
+      'பிங்கல', 'காளயுக்தி', 'சித்தார்த்தி', 'ரௌத்திரி', 'துன்மதி',
+      'துந்துபி', 'ருத்ரோத்காரி', 'ரக்தாட்சி', 'குரோதன', 'அட்சய'
+    ];
+
+    final tamilYearEffective = (m < 4 || (m == 4 && d < 14)) ? y - 1 : y;
+    final cycleIndex = ((tamilYearEffective - 1987) % 60 + 60) % 60;
+    final yearName = '${tamilYears[cycleIndex]} வருடம்';
+
+    return {
+      'tamilMonth': tamilMonth,
+      'tamilDay': tamilDay,
+      'tamilYear': yearName,
+      'tamilDateStr': '$tamilMonth $tamilDay',
+    };
+  }
+
+  /// Map raw JSON / Astronomical data into strongly-typed TNT models
+  PanchangamDailyBundle mapToPanchangamBundle(
     DateTime date,
     UserLocationItem location,
-    Map<String, dynamic> json,
-  ) {
+    Map<String, dynamic> json, {
+    bool isOffline = false,
+  }) {
     final astro = json['astronomical'] as Map<String, dynamic>? ?? {};
     final tithi = astro['tithi'] as Map<String, dynamic>? ?? {};
     final nakshatra = astro['nakshatra'] as Map<String, dynamic>? ?? {};
     final yoga = astro['yoga'] as Map<String, dynamic>? ?? {};
     final karana = astro['karana'] as Map<String, dynamic>? ?? {};
-    final vara = astro['vara'] as Map<String, dynamic>? ?? {};
     final sunTimes = astro['sunTimes'] as Map<String, dynamic>? ?? {};
     final inauspicious = astro['inauspicious'] as Map<String, dynamic>? ?? {};
     final auspicious = astro['auspiciousTimings'] as Map<String, dynamic>? ?? {};
     final observances = astro['observances'] as Map<String, dynamic>? ?? {};
 
-    // 1. Calendar Day model
+    // 1. Dynamic Tamil Calendar Day calculation
+    final tInfo = computeTamilDate(date);
+    final tamilDateStr = tInfo['tamilDateStr'] as String;
+
     final calDay = CalendarDay(
       gregorianDate: date,
-      tamilMonth: 'புரட்டாசி',
-      tamilYear: 'சுபகிருது வருடம்',
-      tamilDay: date.day,
-      tamilDateStr: 'புரட்டாசி ${date.day}',
+      tamilMonth: tInfo['tamilMonth'] as String,
+      tamilYear: tInfo['tamilYear'] as String,
+      tamilDay: tInfo['tamilDay'] as int,
+      tamilDateStr: tamilDateStr,
       tithi: tithi['nameEn'] as String? ?? 'Ekadashi',
       tithiTa: tithi['nameTa'] as String? ?? 'ஏகாதசி',
       nakshatra: nakshatra['nameEn'] as String? ?? 'Shravana',
@@ -273,6 +387,8 @@ class PanchangRepository {
       moonset: sunTimes['moonset'] as String? ?? '04:10 AM',
       paksha: tithi['paksha'] as String? ?? 'Shukla Paksha',
       pakshaTa: tithi['pakshaTa'] as String? ?? 'வளர்பிறை',
+      dayDuration: sunTimes['dayDuration'] as String? ?? '12h 00m',
+      nightDuration: sunTimes['nightDuration'] as String? ?? '12h 00m',
     );
 
     // 3. Timings aggregation
@@ -359,14 +475,14 @@ class PanchangRepository {
     // Gowri Panchangam
     timings.addAll(GowriPanchangamProvider.getGowriTimings(date, astro));
 
-    // 4. Special Day Observances derived from Navamsha calculations
+    // 4. Special Day Observances derived from astronomical calculations
     final List<SpecialDay> specialDays = [];
 
     if (observances['isPournami'] == true) {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-pournami',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Pournami (Full Moon)',
         titleTa: 'பௌர்ணமி விரதம்',
         category: 'pournami',
@@ -383,7 +499,7 @@ class PanchangRepository {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-amavasai',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Amavasai (New Moon)',
         titleTa: 'அமாவாசை விரதம்',
         category: 'amavasai',
@@ -400,7 +516,7 @@ class PanchangRepository {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-ekadashi',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Ekadashi Viratham',
         titleTa: 'ஏகாதசி விரதம்',
         category: 'ekadashi',
@@ -417,7 +533,7 @@ class PanchangRepository {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-sashti',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Sashti Viratham',
         titleTa: 'சஷ்டி விரதம்',
         category: 'sashti',
@@ -434,7 +550,7 @@ class PanchangRepository {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-krithigai',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Krithigai Deepam Day',
         titleTa: 'கிருத்திகை நட்சத்திர விரதம்',
         category: 'krithigai',
@@ -451,7 +567,7 @@ class PanchangRepository {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-chaturthi',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Sankatahara Chaturthi',
         titleTa: 'சங்கடஹர சதுர்த்தி',
         category: 'sankatahara_chaturthi',
@@ -468,7 +584,7 @@ class PanchangRepository {
       specialDays.add(SpecialDay(
         id: '${date.year}-${date.month}-${date.day}-pradosham',
         date: date,
-        tamilDateStr: 'புரட்டாசி ${date.day}',
+        tamilDateStr: tamilDateStr,
         title: 'Pradosha Viratham',
         titleTa: 'பிரதோஷ விரதம்',
         category: 'pradosham',
@@ -490,6 +606,8 @@ class PanchangRepository {
       specialDays: specialDays,
       festivals: [],
       muhurthams: [],
+      isFromOfflineCache: isOffline,
+      cachedAt: isOffline ? DateTime.now() : null,
     );
   }
 

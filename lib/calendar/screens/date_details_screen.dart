@@ -10,6 +10,7 @@ import '../../festivals/screens/festival_detail_screen.dart';
 import '../../muhurtham/screens/muhurtham_detail_screen.dart';
 import '../../panchangam/models/panchangam_bundle.dart';
 import '../../repositories/panchang_repository.dart';
+import '../../services/navamsha_panchang_service.dart';
 import '../../services/saved_items_service.dart';
 import '../../services/reminder_service.dart';
 
@@ -112,12 +113,30 @@ class _DateDetailsScreenState extends State<DateDetailsScreen> {
       
       _logAnalyticsEvent('calendar_date_open');
     } catch (e) {
+      final loc = UserLocationItem(
+        id: 'loc-Chennai',
+        userId: 'active-user',
+        name: 'Chennai',
+        city: 'Chennai',
+        timezone: 'Asia/Kolkata',
+        createdAt: DateTime.now(),
+      );
+      final mathData = NavamshaPanchangService().computeLocalAstronomicalFallback(
+        year: widget.date.year,
+        month: widget.date.month,
+        date: widget.date.day,
+        latitude: 13.0827,
+        longitude: 80.2707,
+        timezone: 5.5,
+        cityName: 'Chennai',
+      );
+      final mathBundle = PanchangRepository().mapToPanchangamBundle(widget.date, loc, mathData, isOffline: true);
       setState(() {
+        _calendarDay ??= mathBundle.calendarDay;
+        _panchangam ??= mathBundle.panchangam;
+        _timings = _timings.isEmpty ? mathBundle.timings : _timings;
         _isLoading = false;
-        // Only set error message if we really don't have calendar day at all
-        if (_calendarDay == null) {
-          _errorMsg = e.toString();
-        }
+        _errorMsg = null;
       });
     }
   }

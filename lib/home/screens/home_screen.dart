@@ -85,10 +85,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _triggerAnalyticsEvent('home_view');
 
+    final now = DateTime.now();
+    PanchangamDailyBundle? bundle;
+
     try {
-      final now = DateTime.now();
-      
-      // Use PanchangRepository directly to get panchangam, timings, and calendar day
       final repo = PanchangRepository();
       final loc = UserLocationItem(
         id: 'loc-${_selectedCity}',
@@ -99,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
         createdAt: DateTime.now(),
       );
       
-      PanchangamDailyBundle? bundle;
       try {
         bundle = await repo.getDailyPanchangam(date: now, location: loc);
       } catch (e) {
@@ -130,9 +129,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _muhurthams = results[2] as List<MuhurthamDate>;
           
           if (bundle != null) {
-            _todayCalendar = bundle.calendarDay;
-            _todayPanchangam = bundle.panchangam;
-            _timings = bundle.timings;
+            _todayCalendar = bundle!.calendarDay;
+            _todayPanchangam = bundle!.panchangam;
+            _timings = bundle!.timings;
           }
           
           _isOfflineCacheActive = hasCached;
@@ -140,7 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      final now = DateTime.now();
       final cachedBundle = await PanchangLocalCacheService().getCachedDailyPanchangam(
         date: now,
         location: _selectedCity,
@@ -149,7 +147,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          if (cachedBundle != null) {
+          if (bundle != null) {
+            _todayCalendar = bundle!.calendarDay;
+            _todayPanchangam = bundle!.panchangam;
+            _timings = bundle!.timings;
+            _errorMsg = null;
+          } else if (cachedBundle != null) {
             _todayCalendar = cachedBundle.calendarDay;
             _todayPanchangam = cachedBundle.panchangam;
             _timings = cachedBundle.timings;
@@ -318,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return Scaffold(
         backgroundColor: TNTColors.background,
         body: TNTErrorWidget(
-          message: translate('error_loading'),
+          message: _errorMsg ?? translate('error_loading'),
           onRetry: _loadAllHomeData,
         ),
       );

@@ -142,7 +142,7 @@ class MuhurthamDateCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            isTamil ? item.dayOfWeekTa : item.dayOfWeekEn.substring(0, 3).toUpperCase(),
+                            isTamil ? item.dayOfWeekTa : (item.dayOfWeekEn.length >= 3 ? item.dayOfWeekEn.substring(0, 3) : item.dayOfWeekEn).toUpperCase(),
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,

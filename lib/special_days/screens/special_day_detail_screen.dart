@@ -164,7 +164,7 @@ class _SpecialDayDetailScreenState extends State<SpecialDayDetailScreen> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  isTamil ? s.dayOfWeekTa : s.dayOfWeekEn.substring(0, 3).toUpperCase(),
+                                  isTamil ? s.dayOfWeekTa : (s.dayOfWeekEn.length >= 3 ? s.dayOfWeekEn.substring(0, 3) : s.dayOfWeekEn).toUpperCase(),
                                   style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: TNTColors.textSecondary),
                                 ),
                               ],

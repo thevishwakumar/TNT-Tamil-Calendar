@@ -359,7 +359,7 @@ class _SpecialDaysScreenState extends State<SpecialDaysScreen> with AutomaticKee
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          isTamil ? day.dayOfWeekTa : day.dayOfWeekEn.substring(0, 3).toUpperCase(),
+                          isTamil ? day.dayOfWeekTa : (day.dayOfWeekEn.length >= 3 ? day.dayOfWeekEn.substring(0, 3) : day.dayOfWeekEn).toUpperCase(),
                           style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,

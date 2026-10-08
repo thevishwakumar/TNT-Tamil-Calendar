@@ -164,7 +164,7 @@ class _FestivalDetailScreenState extends State<FestivalDetailScreen> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  isTamil ? f.dayOfWeekTa : f.dayOfWeekEn.substring(0, 3).toUpperCase(),
+                                  isTamil ? f.dayOfWeekTa : (f.dayOfWeekEn.length >= 3 ? f.dayOfWeekEn.substring(0, 3) : f.dayOfWeekEn).toUpperCase(),
                                   style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: TNTColors.textSecondary),
                                 ),
                               ],

@@ -202,20 +202,28 @@ class AdminContentRepository {
 
   Future<Festival> saveFestival(Festival festival) async {
     if (_db.isInitialized) {
-      final payload = festival.toJson();
-      final res = festival.id.isEmpty
-          ? await _db.client.from('festivals').insert(payload).select().single()
-          : await _db.client.from('festivals').update(payload).eq('id', festival.id).select().single();
+      final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(festival.id);
+      final dateStr = '${festival.date.year.toString().padLeft(4, '0')}-${festival.date.month.toString().padLeft(2, '0')}-${festival.date.day.toString().padLeft(2, '0')}';
+      final payload = <String, dynamic>{
+        'date': dateStr,
+        'name_tamil': festival.nameTa.isNotEmpty ? festival.nameTa : festival.name,
+        'name_english': festival.name.isNotEmpty ? festival.name : festival.nameTa,
+        'description_tamil': festival.descriptionTa,
+        'description_english': festival.description,
+        'is_published': festival.isPublished,
+      };
+      if (isUuid) {
+        payload['id'] = festival.id;
+      }
+      final res = isUuid
+          ? await _db.client.from('festivals').update(payload).eq('id', festival.id).select().single()
+          : await _db.client.from('festivals').insert(payload).select().single();
       final saved = Festival.fromJson(res);
-      await logAudit(action: festival.id.isEmpty ? 'CREATE' : 'UPDATE', module: 'FESTIVALS', recordId: saved.id, newState: saved.toJson());
+      await logAudit(action: isUuid ? 'UPDATE' : 'CREATE', module: 'FESTIVALS', recordId: saved.id, newState: saved.toJson());
       return saved;
     }
 
-    throw StateError('Offline mock data is not supported in production.'); if (false) {
-      _devFestivals.add(festival);
-    }
-    await logAudit(action: 'UPDATE', module: 'FESTIVALS', recordId: festival.id, newState: festival.toJson());
-    return festival;
+    throw StateError('Offline mock data is not supported in production.');
   }
 
   // ===========================================================================
@@ -230,20 +238,47 @@ class AdminContentRepository {
 
   Future<SpecialDay> saveSpecialDay(SpecialDay sp) async {
     if (_db.isInitialized) {
-      final payload = sp.toJson();
-      final res = sp.id.isEmpty
-          ? await _db.client.from('special_days').insert(payload).select().single()
-          : await _db.client.from('special_days').update(payload).eq('id', sp.id).select().single();
+      final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(sp.id);
+      final dateStr = '${sp.date.year.toString().padLeft(4, '0')}-${sp.date.month.toString().padLeft(2, '0')}-${sp.date.day.toString().padLeft(2, '0')}';
+
+      String cat = sp.category.toLowerCase().trim();
+      const allowedCategories = [
+        'amavasai', 'pournami', 'pradosham', 'sashti', 'ekadashi',
+        'krithigai', 'chaturthi', 'shivaratri', 'special_day'
+      ];
+      if (!allowedCategories.contains(cat)) {
+        if (cat.contains('amavasai')) cat = 'amavasai';
+        else if (cat.contains('pournami')) cat = 'pournami';
+        else if (cat.contains('pradosham')) cat = 'pradosham';
+        else if (cat.contains('sashti')) cat = 'sashti';
+        else if (cat.contains('ekadashi')) cat = 'ekadashi';
+        else if (cat.contains('krithigai')) cat = 'krithigai';
+        else if (cat.contains('chaturthi')) cat = 'chaturthi';
+        else if (cat.contains('shivaratri')) cat = 'shivaratri';
+        else cat = 'special_day';
+      }
+
+      final payload = <String, dynamic>{
+        'date': dateStr,
+        'name_tamil': sp.titleTa.isNotEmpty ? sp.titleTa : sp.title,
+        'name_english': sp.title.isNotEmpty ? sp.title : sp.titleTa,
+        'category': cat,
+        'description_tamil': sp.descriptionTa,
+        'description_english': sp.description,
+        'is_published': sp.isPublished,
+      };
+      if (isUuid) {
+        payload['id'] = sp.id;
+      }
+      final res = isUuid
+          ? await _db.client.from('special_days').update(payload).eq('id', sp.id).select().single()
+          : await _db.client.from('special_days').insert(payload).select().single();
       final saved = SpecialDay.fromJson(res);
-      await logAudit(action: sp.id.isEmpty ? 'CREATE' : 'UPDATE', module: 'SPECIAL_DAYS', recordId: saved.id, newState: saved.toJson());
+      await logAudit(action: isUuid ? 'UPDATE' : 'CREATE', module: 'SPECIAL_DAYS', recordId: saved.id, newState: saved.toJson());
       return saved;
     }
 
-    throw StateError('Offline mock data is not supported in production.'); if (false) {
-      _devSpecialDays.add(sp);
-    }
-    await logAudit(action: 'UPDATE', module: 'SPECIAL_DAYS', recordId: sp.id, newState: sp.toJson());
-    return sp;
+    throw StateError('Offline mock data is not supported in production.');
   }
 
   // ===========================================================================
@@ -379,6 +414,49 @@ class AdminContentRepository {
         previewRecords: [],
       );
     }
+  }
+
+  Future<int> commitBulkImport({
+    required String module,
+    required List<Map<String, dynamic>> records,
+  }) async {
+    int count = 0;
+    for (final rec in records) {
+      try {
+        final dateStr = rec['date']?.toString() ?? DateTime.now().toIso8601String().split('T')[0];
+        final parsedDate = DateTime.tryParse(dateStr) ?? DateTime.now();
+
+        if (module == 'FESTIVALS') {
+          final fest = Festival(
+            id: '',
+            date: parsedDate,
+            name: rec['name_english']?.toString() ?? rec['name']?.toString() ?? '',
+            nameTa: rec['name_tamil']?.toString() ?? rec['name_ta']?.toString() ?? '',
+            description: rec['description_english']?.toString() ?? rec['description']?.toString() ?? '',
+            descriptionTa: rec['description_tamil']?.toString() ?? rec['description_ta']?.toString() ?? '',
+            category: rec['category']?.toString() ?? 'Festivals',
+          );
+          await saveFestival(fest);
+          count++;
+        } else if (module == 'SPECIAL_DAYS') {
+          final sp = SpecialDay(
+            id: '',
+            date: parsedDate,
+            title: rec['name_english']?.toString() ?? rec['title']?.toString() ?? '',
+            titleTa: rec['name_tamil']?.toString() ?? rec['title_ta']?.toString() ?? '',
+            category: rec['category']?.toString() ?? 'special_day',
+            description: rec['description_english']?.toString() ?? rec['description']?.toString() ?? '',
+            descriptionTa: rec['description_tamil']?.toString() ?? rec['description_ta']?.toString() ?? '',
+            isHoliday: false,
+          );
+          await saveSpecialDay(sp);
+          count++;
+        }
+      } catch (e) {
+        debugPrint('Error importing record: $e');
+      }
+    }
+    return count;
   }
 
   Future<bool> deleteSpecialDay(String id) async {

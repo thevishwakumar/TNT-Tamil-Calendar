@@ -63,17 +63,22 @@ class _AdminBulkImportScreenState extends State<AdminBulkImportScreen> {
     );
     if (!confirmed) return;
 
+    final count = await _repo.commitBulkImport(
+      module: _selectedModule,
+      records: _validationResult?.previewRecords ?? [],
+    );
+
     await _repo.logAudit(
       action: 'BULK_IMPORT',
       module: _selectedModule,
       recordId: 'bulk-${DateTime.now().millisecondsSinceEpoch}',
-      newState: {'rows_imported': _validationResult?.validRows ?? 0},
+      newState: {'rows_imported': count},
     );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${_validationResult?.validRows} records successfully committed to $_selectedModule database!'),
+          content: Text('$count records successfully committed to $_selectedModule database!'),
           backgroundColor: Colors.green[700],
         ),
       );

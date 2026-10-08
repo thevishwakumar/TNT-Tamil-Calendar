@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
+import '../../bulk_import/admin_bulk_import_screen.dart';
 import '../repositories/system_settings_repository.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
@@ -151,6 +152,51 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               SizedBox(height: 4),
               Text('Manage global app configurations and features.', style: TextStyle(color: TNTColors.textSecondary, fontSize: 13)),
             ],
+          ),
+        ),
+
+        // Bulk Import Quick Link
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AdminBulkImportScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: TNTColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: TNTColors.primary.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: TNTColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.upload_file_rounded, color: TNTColors.primary, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Bulk Dataset Import Tool', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+                        SizedBox(height: 2),
+                        Text('Batch import Festivals, Special Days & CSV datasets', style: TextStyle(fontSize: 12, color: TNTColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: TNTColors.primary),
+                ],
+              ),
+            ),
           ),
         ),
         

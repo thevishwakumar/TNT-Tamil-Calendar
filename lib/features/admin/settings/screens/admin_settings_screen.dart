@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
-import 'repositories/system_settings_repository.dart';
+import '../repositories/system_settings_repository.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});

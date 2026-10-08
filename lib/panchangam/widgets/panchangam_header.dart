@@ -134,6 +134,7 @@ class PanchangamHeader extends StatelessWidget {
               const TNTBrandHeader(),
             ],
           ),
+        ),
         ],
       ),
     );

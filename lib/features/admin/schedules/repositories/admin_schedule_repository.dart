@@ -6,7 +6,7 @@ class AdminScheduleRepository {
   final SupabaseClient? _client;
 
   AdminScheduleRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService().client;
+      : _client = client;
 
   /// Fetch all admin operational schedules
   Future<List<AdminScheduleItem>> getSchedules({String? category, String? status, String? search, int page = 0, int pageSize = 50}) async {

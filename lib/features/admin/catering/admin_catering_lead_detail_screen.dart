@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../catering/models/catering_enquiry.dart';
-import '../../../catering/repositories/catering_repository.dart';
+import '../../catering/models/catering_enquiry.dart';
+import '../../catering/repositories/catering_repository.dart';
 import 'package:intl/intl.dart';
 
 class AdminCateringLeadDetailScreen extends StatefulWidget {

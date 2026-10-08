@@ -7,7 +7,7 @@ class AdminAnalyticsRepository {
   final SupabaseClient? _client;
 
   AdminAnalyticsRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService().client;
+      : _client = client;
 
   /// Fetches comprehensive analytics summary for a given date range
   Future<AnalyticsSummary> getSummary(AnalyticsDateRange range) async {

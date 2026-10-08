@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../catering/models/catering_enquiry.dart';
-import '../../../catering/repositories/catering_repository.dart';
+import '../../catering/models/catering_enquiry.dart';
+import '../../catering/repositories/catering_repository.dart';
 import 'package:intl/intl.dart';
 import 'admin_catering_lead_detail_screen.dart';
 

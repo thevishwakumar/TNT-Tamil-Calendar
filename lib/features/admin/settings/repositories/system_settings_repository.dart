@@ -24,7 +24,7 @@ class SystemSetting {
 }
 
 class SystemSettingsRepository {
-  final _supabase = Supabase.instance.client;
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<List<SystemSetting>> getAllSettings() async {
     final response = await _supabase

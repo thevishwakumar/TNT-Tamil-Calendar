@@ -18,7 +18,7 @@ class SupabaseEdgeFunctionSmsOtpProvider implements SmsOtpProvider {
   final SupabaseClient? _client;
 
   SupabaseEdgeFunctionSmsOtpProvider({SupabaseClient? client})
-      : _client = client ?? SupabaseService().client;
+      : _client = client;
 
   @override
   Future<bool> sendOtp(String phoneNumber) async {

@@ -20,7 +20,7 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
   final SupabaseClient? _client;
 
   SupabaseEdgeFunctionEmailOtpProvider({SupabaseClient? client})
-      : _client = client ?? SupabaseService().client;
+      : _client = client;
 
   @override
   Future<bool> sendOtp(String email, {String? userId}) async {

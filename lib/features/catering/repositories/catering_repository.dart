@@ -60,17 +60,16 @@ class CateringRepository {
   Future<List<CateringEnquiry>> getAdminLeads({String filter = 'All', int page = 0, int pageSize = 25}) async {
     if (!_db.isInitialized) return [];
 
-    var query = _db.client
-        .from('catering_enquiries')
-        .select()
-        .order('created_at', ascending: false)
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+    var query = _db.client.from('catering_enquiries').select();
 
     if (filter != 'All') {
       query = query.eq('status', filter.toLowerCase());
     }
 
-    final response = await query;
+    final response = await query
+        .order('created_at', ascending: false)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
     return (response as List).map((json) => CateringEnquiry.fromJson(json)).toList();
   }
 

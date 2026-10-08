@@ -16,6 +16,7 @@ import '../../features/admin/calendar_management/admin_calendar_screen.dart';
 import '../../features/admin/notifications/screens/admin_campaigns_screen.dart';
 import '../../features/admin/analytics/screens/admin_analytics_screen.dart';
 import '../../features/admin/users/screens/admin_users_screen.dart';
+import '../../features/admin/schedules/screens/admin_schedules_screen.dart';
 import '../../features/admin/catering/admin_catering_leads_screen.dart';
 import '../../features/catering/repositories/catering_repository.dart';
 
@@ -437,6 +438,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ],
           ),
           const SizedBox(height: 10),
+          Row(
+            children: [
               Expanded(
                 child: _buildSummaryCard(
                   'Upcoming Festivals',

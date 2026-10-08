@@ -7,13 +7,19 @@ class SupabaseConfig {
   static String get url {
     const envUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
     if (envUrl.isNotEmpty) return envUrl;
-    return dotenv.env['SUPABASE_URL'] ?? 'https://placeholder-tnt-project.supabase.co';
+    if (dotenv.isInitialized) {
+      return dotenv.env['SUPABASE_URL'] ?? 'https://placeholder-tnt-project.supabase.co';
+    }
+    return 'https://placeholder-tnt-project.supabase.co';
   }
   
   static String get anonKey {
     const envKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
     if (envKey.isNotEmpty) return envKey;
-    return dotenv.env['SUPABASE_ANON_KEY'] ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIn0.signature';
+    if (dotenv.isInitialized) {
+      return dotenv.env['SUPABASE_ANON_KEY'] ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIn0.signature';
+    }
+    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIn0.signature';
   }
 }
 

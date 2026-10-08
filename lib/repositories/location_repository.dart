@@ -11,7 +11,7 @@ class LocationRepository {
   static final Map<String, List<TNTDistrict>> _districtsCache = {};
 
   LocationRepository({SupabaseClient? client})
-      : _client = client ?? SupabaseService().client;
+      : _client = client;
 
   Future<List<TNTCountry>> getCountries() async {
     if (_countriesCache != null) return _countriesCache!;

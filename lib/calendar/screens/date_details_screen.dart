@@ -10,6 +10,8 @@ import '../../festivals/screens/festival_detail_screen.dart';
 import '../../muhurtham/screens/muhurtham_detail_screen.dart';
 import '../../panchangam/models/panchangam_bundle.dart';
 import '../../repositories/panchang_repository.dart';
+import '../../services/saved_items_service.dart';
+import '../../services/reminder_service.dart';
 
 class DateDetailsScreen extends StatefulWidget {
   final DateTime date;
@@ -793,48 +795,102 @@ ${_muhurthams.isNotEmpty ? '💍 ${isTamil ? 'சுப முகூர்த்
   }
 
   Widget _buildActionsRow(TNTLocalizations localizations, bool isTamil) {
+    final itemId = '${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}';
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionCircularBtn(
-            Icons.save_alt_rounded,
-            isTamil ? 'சேமி' : 'Save',
-            () {
-              _logAnalyticsEvent('save_action_click');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: TNTColors.primary,
-                  content: Text(isTamil ? 'நாள் சேமிக்கப்பட்டது!' : 'Date saved successfully!'),
-                ),
-              );
-            },
-          ),
-          _buildActionCircularBtn(
-            Icons.notifications_none_rounded,
-            isTamil ? 'நினைவூட்டல்' : 'Reminder',
-            () {
-              _logAnalyticsEvent('reminder_action_click');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: TNTColors.primary,
-                  content: Text(isTamil ? 'நினைவூட்டல் அமைக்கப்பட்டது!' : 'Reminder set successfully!'),
-                ),
-              );
-            },
-          ),
-          _buildActionCircularBtn(
-            Icons.share_rounded,
-            isTamil ? 'பகிர்' : 'Share',
-            () => _handleShare(localizations, isTamil),
-          ),
-        ],
+      child: ListenableBuilder(
+        listenable: Listenable.merge([SavedItemsService(), ReminderService()]),
+        builder: (context, _) {
+          final isSaved = SavedItemsService().isItemSaved(SavedItemType.panchangam.toDbString(), itemId);
+          final hasReminder = ReminderService().reminders.any((r) => r.itemId == itemId && r.itemType == SavedItemType.panchangam.toDbString());
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildActionCircularBtn(
+                isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                isTamil ? 'சேமி' : 'Save',
+                isSaved,
+                () async {
+                  _logAnalyticsEvent('save_action_click');
+                  final item = SavedItem(
+                    id: '',
+                    userId: '',
+                    itemType: SavedItemType.panchangam.toDbString(),
+                    itemId: itemId,
+                    savedAt: DateTime.now(),
+                    title: _calendarDay != null ? (isTamil ? _calendarDay!.tamilDateStr : '${_calendarDay!.tamilMonth} ${_calendarDay!.tamilDay}') : '',
+                    titleTa: _calendarDay != null ? _calendarDay!.tamilDateStr : '',
+                    subtitle: _calendarDay != null ? (isTamil ? _calendarDay!.tithiTa : _calendarDay!.tithi) : '',
+                    subtitleTa: _calendarDay != null ? _calendarDay!.tithiTa : '',
+                    date: widget.date,
+                    tamilDateStr: _calendarDay != null ? _calendarDay!.tamilDateStr : '',
+                  );
+                  final saved = await SavedItemsService().toggleSave(item);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: TNTColors.primary,
+                        content: Text(saved 
+                            ? (isTamil ? 'நாள் சேமிக்கப்பட்டது!' : 'Date saved successfully!')
+                            : (isTamil ? 'சேமிப்பிலிருந்து நீக்கப்பட்டது!' : 'Removed from saved items!')),
+                      ),
+                    );
+                  }
+                },
+              ),
+              _buildActionCircularBtn(
+                hasReminder ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                isTamil ? 'நினைவூட்டல்' : 'Reminder',
+                hasReminder,
+                () async {
+                  _logAnalyticsEvent('reminder_action_click');
+                  if (hasReminder) {
+                    await ReminderService().removeReminderForItem(SavedItemType.panchangam.toDbString(), itemId);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: TNTColors.primary,
+                          content: Text(isTamil ? 'நினைவூட்டல் நீக்கப்பட்டது!' : 'Reminder removed!'),
+                        ),
+                      );
+                    }
+                  } else {
+                    await ReminderService().setReminder(
+                      itemType: SavedItemType.panchangam.toDbString(),
+                      itemId: itemId,
+                      title: _calendarDay != null ? '${_calendarDay!.tamilMonth} ${_calendarDay!.tamilDay}' : 'Panchangam',
+                      titleTa: _calendarDay != null ? _calendarDay!.tamilDateStr : 'பஞ்சாங்கம்',
+                      eventDate: widget.date,
+                      reminderTime: 'Morning 6:00 AM',
+                      reminderType: 'morning_6am',
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: TNTColors.primary,
+                          content: Text(isTamil ? 'நினைவூட்டல் அமைக்கப்பட்டது!' : 'Reminder set successfully!'),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              _buildActionCircularBtn(
+                Icons.share_rounded,
+                isTamil ? 'பகிர்' : 'Share',
+                false,
+                () => _handleShare(localizations, isTamil),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildActionCircularBtn(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildActionCircularBtn(IconData icon, String label, bool isActive, VoidCallback onTap) {
     return Column(
       children: [
         GestureDetector(
@@ -843,9 +899,9 @@ ${_muhurthams.isNotEmpty ? '💍 ${isTamil ? 'சுப முகூர்த்
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: TNTColors.surface,
+              color: isActive ? TNTColors.primary.withValues(alpha: 0.1) : TNTColors.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: TNTColors.border),
+              border: Border.all(color: isActive ? TNTColors.primary : TNTColors.border),
               boxShadow: const [
                 BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
               ],
@@ -857,7 +913,11 @@ ${_muhurthams.isNotEmpty ? '💍 ${isTamil ? 'சுப முகூர்த்
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: TNTColors.textSecondary),
+          style: TextStyle(
+            fontSize: 11, 
+            fontWeight: FontWeight.bold, 
+            color: isActive ? TNTColors.primary : TNTColors.textSecondary
+          ),
         ),
       ],
     );

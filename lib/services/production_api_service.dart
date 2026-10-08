@@ -236,8 +236,8 @@ class SupabaseApiService implements ITNTApiService {
         return (res as List).map((e) => Festival(
       id: e['id'],
       date: DateTime.parse(e['date']),
-      name: e['name'] ?? '',
-      nameTa: e['name_ta'] ?? e['name'] ?? '',
+      name: e['name'] ?? e['title'] ?? '',
+      nameTa: e['name_ta'] ?? e['title_ta'] ?? e['name'] ?? e['title'] ?? '',
       type: e['category'] ?? 'hindu',
       description: e['description'] ?? '',
       descriptionTa: e['description_ta'] ?? '',

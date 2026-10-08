@@ -99,11 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
         createdAt: DateTime.now(),
       );
       
-      try {
-        bundle = await repo.getDailyPanchangam(date: now, location: loc);
-      } catch (e) {
-        // Fallback or ignore if Navamsha fails, it shouldn't block the whole home screen
-      }
+      bundle = await repo.getDailyPanchangam(date: now, location: loc);
       
       // Async fetching from repositories/services
       // Fallback to empty lists if they throw (e.g. Supabase uninitialized)
@@ -395,20 +391,16 @@ class _HomeScreenState extends State<HomeScreen> {
       surfaceTintColor: Colors.transparent,
       title: Row(
         children: [
-          // Elegant Saffron core name
-          const Text(
-            'TNT',
-            style: TextStyle(
-              color: TNTColors.primary,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.0,
-            ),
+          // The logo and brand name
+          const Flexible(
+            flex: 0,
+            child: TNTBrandHeader(),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           
           // Location Selector Bubble
-          GestureDetector(
+          Flexible(
+            child: GestureDetector(
             onTap: () => _showLocationPicker(context, translate),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -430,10 +422,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-          )
+          ))
         ],
       ),
-      actions: [ const TNTBrandHeader(), 
+      actions: [
         // Bell icon shortcut with live unread badge and navigation
         ListenableBuilder(
           listenable: NotificationService(),

@@ -73,16 +73,17 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                   AdminDropdown<String>(
                     label: 'Observance Category',
                     value: category,
-                    items: const [
-                      DropdownMenuItem(value: 'Amavasai', child: Text('Amavasai (அமாவாசை)')),
-                      DropdownMenuItem(value: 'Pournami', child: Text('Pournami (பௌர்ணமி)')),
-                      DropdownMenuItem(value: 'Pradosham', child: Text('Pradosham (பிரதோஷம்)')),
-                      DropdownMenuItem(value: 'Ekadashi', child: Text('Ekadashi (ஏகாதசி)')),
-                      DropdownMenuItem(value: 'Sashti', child: Text('Sashti (சஷ்டி)')),
-                      DropdownMenuItem(value: 'Sankatahara Chaturthi', child: Text('Sankatahara Chaturthi (சங்கடஹர சதுர்த்தி)')),
-                      DropdownMenuItem(value: 'Krithigai', child: Text('Krithigai (கிருத்திகை)')),
-                      DropdownMenuItem(value: 'Government Holiday', child: Text('Government Holiday (அரசு விடுமுறை)')),
-                    ],
+                    items: {
+                      'Amavasai',
+                      'Pournami',
+                      'Pradosham',
+                      'Ekadashi',
+                      'Sashti',
+                      'Sankatahara Chaturthi',
+                      'Krithigai',
+                      'Government Holiday',
+                      category
+                    }.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                     onChanged: (val) {
                       if (val != null) setDialogState(() => category = val);
                     },

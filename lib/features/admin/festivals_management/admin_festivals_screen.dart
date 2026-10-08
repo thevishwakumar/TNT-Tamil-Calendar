@@ -74,12 +74,14 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
                   AdminDropdown<String>(
                     label: 'Category',
                     value: category,
-                    items: const [
-                      DropdownMenuItem(value: 'Major Festival', child: Text('Major Festival')),
-                      DropdownMenuItem(value: 'Temple Festival', child: Text('Temple Festival')),
-                      DropdownMenuItem(value: 'Jayanthi', child: Text('Jayanthi / Avatar')),
-                      DropdownMenuItem(value: 'Government Holiday', child: Text('Government Holiday')),
-                    ],
+                    items: {
+                      'Major Festival',
+                      'Temple Festival',
+                      'Jayanthi',
+                      'Government Holiday',
+                      'Festivals',
+                      category
+                    }.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                     onChanged: (val) {
                       if (val != null) setDialogState(() => category = val);
                     },

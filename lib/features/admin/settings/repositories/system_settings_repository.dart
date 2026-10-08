@@ -27,12 +27,25 @@ class SystemSettingsRepository {
   SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<List<SystemSetting>> getAllSettings() async {
-    final response = await _supabase
-        .from('system_settings')
-        .select('*')
-        .order('key');
+    try {
+      final response = await _supabase
+          .from('system_settings')
+          .select('*')
+          .order('key');
+      
+      final list = (response as List).map((e) => SystemSetting.fromJson(e)).toList();
+      if (list.isNotEmpty) return list;
+    } catch (e) {
+      print('Warning: system_settings table not found or empty. Using fallbacks. Error: $e');
+    }
     
-    return (response as List).map((e) => SystemSetting.fromJson(e)).toList();
+    // Return fallback settings if table fails or is empty
+    return [
+      SystemSetting(key: 'maintenance_mode', value: false, description: 'Turn on to show maintenance screen to users', updatedAt: DateTime.now()),
+      SystemSetting(key: 'enable_push_notifications', value: true, description: 'Global toggle for push notifications', updatedAt: DateTime.now()),
+      SystemSetting(key: 'support_email', value: 'support@tntcalendar.com', description: 'Contact email for support', updatedAt: DateTime.now()),
+      SystemSetting(key: 'app_version', value: '1.0.0', description: 'Current minimum required app version', updatedAt: DateTime.now()),
+    ];
   }
 
   Future<void> updateSetting(String key, dynamic value) async {

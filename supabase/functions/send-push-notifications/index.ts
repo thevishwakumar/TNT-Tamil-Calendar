@@ -109,6 +109,36 @@ serve(async (req) => {
           sent_at: new Date().toISOString(),
         });
         sentCount++;
+              // FCM Push Delivery
+              if (fcmServerKey && device.device_token) {
+                try {
+                  const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'key=' + fcmServerKey,
+                    },
+                    body: JSON.stringify({
+                      to: device.device_token,
+                      notification: {
+                        title: payload.title,
+                        body: payload.body,
+                      },
+                      data: {
+                        campaignId: payload.campaignId || '',
+                        category: payload.category || '',
+                        deepLink: payload.deepLink || '',
+                      },
+                    }),
+                  });
+                  if (!fcmResponse.ok) {
+                    console.error('FCM Send Failed:', await fcmResponse.text());
+                  }
+                } catch (fcmErr) {
+                  console.error('FCM Request Error:', fcmErr);
+                }
+              }
+
       }
 
       return new Response(
@@ -164,6 +194,36 @@ serve(async (req) => {
                 sent_at: new Date().toISOString(),
               });
               sentCount++;
+              // FCM Push Delivery
+              if (fcmServerKey && device.device_token) {
+                try {
+                  const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'key=' + fcmServerKey,
+                    },
+                    body: JSON.stringify({
+                      to: device.device_token,
+                      notification: {
+                        title: payload.title,
+                        body: payload.body,
+                      },
+                      data: {
+                        campaignId: payload.campaignId || '',
+                        category: payload.category || '',
+                        deepLink: payload.deepLink || '',
+                      },
+                    }),
+                  });
+                  if (!fcmResponse.ok) {
+                    console.error('FCM Send Failed:', await fcmResponse.text());
+                  }
+                } catch (fcmErr) {
+                  console.error('FCM Request Error:', fcmErr);
+                }
+              }
+
             }
           }
         }

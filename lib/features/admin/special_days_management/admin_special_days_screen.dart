@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../repositories/panchang_repository.dart';
+import '../../models/tnt_models.dart';
+
 import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
 import '../repositories/admin_content_repository.dart';
@@ -22,6 +25,81 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
   void initState() {
     super.initState();
     _loadSpecialDays();
+  }
+
+  
+  Future<void> _autoGenerateSpecialDays() async {
+    setState(() => _isLoading = true);
+    try {
+      final repo = PanchangRepository();
+      final loc = UserLocationItem(
+        id: 'loc-Chennai',
+        userId: 'admin',
+        name: 'Chennai',
+        city: 'Chennai',
+        timezone: 'Asia/Kolkata',
+        createdAt: DateTime.now(),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-generating special days for current month...')));
+
+      // Auto generate for current selected month
+      final int year = _selectedYear;
+      final int month = _selectedMonth;
+      final daysInMonth = DateTime(year, month + 1, 0).day;
+
+      for (int i = 1; i <= daysInMonth; i++) {
+        final d = DateTime(year, month, i);
+        try {
+          final bundle = await repo.getDailyPanchangam(date: d, location: loc);
+          final tithi = bundle.calendarDay.tithiTa;
+          final nakshatra = bundle.calendarDay.nakshatraTa;
+
+          String? titleTa;
+          String? titleEn;
+          
+          if (tithi.contains('அமாவாசை')) { titleTa = 'அமாவாசை'; titleEn = 'Amavasai'; }
+          else if (tithi.contains('பௌர்ணமி')) { titleTa = 'பௌர்ணமி'; titleEn = 'Pournami'; }
+          else if (tithi.contains('ஏகாதசி')) { titleTa = 'ஏகாதசி'; titleEn = 'Ekadashi'; }
+          else if (tithi.contains('திரயோதசி')) { titleTa = 'பிரதோஷம்'; titleEn = 'Pradosham'; }
+          else if (tithi.contains('சதுர்த்தி')) { titleTa = 'சதுர்த்தி'; titleEn = 'Chaturthi'; }
+          else if (tithi.contains('சஷ்டி')) { titleTa = 'சஷ்டி'; titleEn = 'Sashti'; }
+          else if (nakshatra.contains('கிருத்திகை')) { titleTa = 'கிருத்திகை'; titleEn = 'Krithigai'; }
+          else if (nakshatra.contains('திருவோணம்')) { titleTa = 'திருவோணம்'; titleEn = 'Thiruvonam'; }
+
+          if (titleTa != null) {
+            // Check if already exists in local list to avoid extreme duplicates
+            final exists = _specialDays.any((s) => s.date.day == d.day && s.titleTa == titleTa);
+            if (!exists) {
+              final sp = SpecialDay(
+                id: 'sp--',
+                date: d,
+                title: titleEn!,
+                titleTa: titleTa,
+                category: 'special_day',
+                categoryTa: 'சிறப்பு நாள்',
+                isHoliday: false,
+                description: 'Auto-generated ',
+                descriptionTa: 'தானியங்கி உருவாக்கம்',
+              );
+              await _repo.saveSpecialDay(sp);
+            }
+          }
+        } catch (e) {
+          // ignore error for a single day
+        }
+      }
+
+      await _loadSpecialDays(forceRefresh: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-generation complete!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ')));
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _loadSpecialDays({bool forceRefresh = false}) async {
@@ -213,6 +291,12 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
         backgroundColor: TNTColors.surface,
         elevation: 0,
                 actions: [
+          
+          IconButton(
+            icon: const Icon(Icons.auto_awesome, color: TNTColors.primary),
+            tooltip: 'Auto Generate Special Days',
+            onPressed: _autoGenerateSpecialDays,
+          ),
           IconButton(
             icon: const Icon(Icons.download_rounded, color: TNTColors.primary),
             tooltip: 'Download CSV Template',

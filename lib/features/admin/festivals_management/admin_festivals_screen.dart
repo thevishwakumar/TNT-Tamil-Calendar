@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../repositories/panchang_repository.dart';
+import '../../models/tnt_models.dart';
+
 import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
 import '../repositories/admin_content_repository.dart';
@@ -23,6 +26,85 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
   void initState() {
     super.initState();
     _loadFestivals();
+  }
+
+  
+  Future<void> _autoGenerateFestivals() async {
+    setState(() => _isLoading = true);
+    try {
+      final repo = PanchangRepository();
+      final loc = UserLocationItem(
+        id: 'loc-Chennai',
+        userId: 'admin',
+        name: 'Chennai',
+        city: 'Chennai',
+        timezone: 'Asia/Kolkata',
+        createdAt: DateTime.now(),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-generating festivals for current month...')));
+
+      // Auto generate for current selected month
+      final int year = _selectedYear;
+      final int month = _selectedMonth;
+      final daysInMonth = DateTime(year, month + 1, 0).day;
+
+      for (int i = 1; i <= daysInMonth; i++) {
+        final d = DateTime(year, month, i);
+        try {
+          final bundle = await repo.getDailyPanchangam(date: d, location: loc);
+          
+          // Custom heuristic for some major festivals based on tithi/month
+          // For a real production app, you might map specific tithi+month to festival names
+          // e.g. Chithirai Pournami, Thai Poosam, etc.
+          final tithi = bundle.calendarDay.tithiTa;
+          final nakshatra = bundle.calendarDay.nakshatraTa;
+          final tamilMonth = bundle.calendarDay.tamilMonth;
+
+          String? nameTa;
+          String? nameEn;
+
+          if (tamilMonth == 'சித்திரை' && tithi.contains('பௌர்ணமி')) { nameTa = 'சித்ரா பௌர்ணமி'; nameEn = 'Chitra Pournami'; }
+          else if (tamilMonth == 'வைகாசி' && nakshatra.contains('விசாகம்')) { nameTa = 'வைகாசி விசாகம்'; nameEn = 'Vaikasi Visakam'; }
+          else if (tamilMonth == 'ஆடி' && nakshatra.contains('கிருத்திகை')) { nameTa = 'ஆடிக் கிருத்திகை'; nameEn = 'Aadi Krithigai'; }
+          else if (tamilMonth == 'தை' && nakshatra.contains('பூசம்')) { nameTa = 'தைப்பூசம்'; nameEn = 'Thai Poosam'; }
+          else if (tamilMonth == 'பங்குனி' && nakshatra.contains('உத்திரம்')) { nameTa = 'பங்குனி உத்திரம்'; nameEn = 'Panguni Uthiram'; }
+          else if (tamilMonth == 'மாசி' && tithi.contains('சதுர்த்தசி')) { nameTa = 'மகா சிவராத்திரி'; nameEn = 'Maha Shivaratri'; } // Approximate
+
+          if (nameTa != null) {
+            // Check if already exists in local list to avoid duplicates
+            final exists = _festivals.any((f) => f.date.day == d.day && f.nameTa == nameTa);
+            if (!exists) {
+              final fst = Festival(
+                id: 'fst--',
+                date: d,
+                name: nameEn!,
+                nameTa: nameTa,
+                type: 'hindu',
+                typeTa: 'இந்து பண்டிகை',
+                category: 'Festivals',
+                categoryTa: 'பண்டிகைகள்',
+                description: 'Auto-generated ',
+                descriptionTa: 'தானியங்கி உருவாக்கம்',
+              );
+              await _repo.saveFestival(fst);
+            }
+          }
+        } catch (e) {
+          // ignore error for a single day
+        }
+      }
+
+      await _loadFestivals(forceRefresh: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-generation complete!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ')));
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _loadFestivals({bool forceRefresh = false}) async {
@@ -174,6 +256,12 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
         backgroundColor: TNTColors.surface,
         elevation: 0,
                 actions: [
+          
+          IconButton(
+            icon: const Icon(Icons.auto_awesome, color: TNTColors.primary),
+            tooltip: 'Auto Generate Festivals',
+            onPressed: _autoGenerateFestivals,
+          ),
           IconButton(
             icon: const Icon(Icons.download_rounded, color: TNTColors.primary),
             tooltip: 'Download CSV Template',

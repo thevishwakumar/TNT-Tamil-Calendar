@@ -210,13 +210,13 @@ class SupabaseApiService implements ITNTApiService {
         return (res as List).map((e) => SpecialDay(
       id: e['id'],
       date: DateTime.parse(e['date']),
-      title: e['name'] ?? '',
-      titleTa: e['name_ta'] ?? e['name'] ?? '',
+      title: e['title'] ?? e['name'] ?? '',
+      titleTa: e['title_ta'] ?? e['title'] ?? e['name_ta'] ?? e['name'] ?? '',
       category: e['category'] ?? '',
       categoryTa: e['category_ta'] ?? e['category'] ?? '',
       isHoliday: false,
-      description: e['significance'] ?? '',
-      descriptionTa: e['significance_ta'] ?? '',
+      description: e['description'] ?? e['significance'] ?? '',
+      descriptionTa: e['description_ta'] ?? e['description'] ?? e['significance_ta'] ?? '',
     )).toList();
   }
 

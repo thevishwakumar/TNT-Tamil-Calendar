@@ -173,27 +173,9 @@ class PanchangRepository {
         return localCached;
       }
 
-      // Fallback: Return mock data instead of throwing so the app doesn't break
-      final mockData = {
-        'astronomical': {
-          'tithi': {'nameEn': 'Prathama', 'nameTa': 'பிரதமை', 'paksha': 'Shukla Paksha', 'pakshaTa': 'வளர்பிறை'},
-          'nakshatra': {'nameEn': 'Ashwini', 'nameTa': 'அஸ்வினி'},
-          'yoga': {'nameEn': 'Vishkumbha', 'nameTa': 'விஷ்கம்பம்'},
-          'karana': {'nameEn': 'Bava', 'nameTa': 'பவம்'},
-          'sunTimes': {'sunrise': '06:00 AM', 'sunset': '06:00 PM', 'moonrise': '06:00 PM', 'moonset': '06:00 AM'},
-          'inauspicious': {
-            'rahuKaal': '04:30 PM - 06:00 PM',
-            'yamagandam': '12:00 PM - 01:30 PM',
-            'gulikaKaal': '03:00 PM - 04:30 PM'
-          },
-          'auspiciousTimings': {
-            'abhijitMuhurat': '11:45 AM - 12:30 PM',
-            'brahmaMuhurta': '04:30 AM - 05:15 AM'
-          },
-          'observances': {}
-        }
-      };
-      return _mapToPanchangamBundle(date, location, mockData);
+            // NO MOCK DATA. If network and cache both fail, throw an error to show offline state in UI.
+      throw Exception('Unable to fetch Panchangam: No network and no offline cache available.');
+
     }
   }
 

@@ -30,32 +30,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     _notificationService.fetchPreferences();
   }
 
-  void _triggerTestPush(bool isTamil) async {
-    await _notificationService.receiveSimulatedPush(
-      title: 'Auspicious Muhurtham Tomorrow',
-      titleTa: 'நாளை சுப முகூர்த்தம்',
-      body: 'Morning 09:15 AM - 10:15 AM (Thula Lagnam). Push notification delivered via secure server pipeline.',
-      bodyTa: 'காலை 09:15 முதல் 10:15 வரை (துலா லக்னம்). பாதுகாப்பான சர்வர் வழியாக அனுப்பப்பட்டது.',
-      notificationType: 'muhurtham',
-      relatedItemType: 'muhurtham',
-      relatedItemId: 'oct-12',
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isTamil
-                ? 'சோதனை அறிவிப்பு வெற்றிகரமாக உருவாக்கப்பட்டது!'
-                : 'Test push notification generated successfully!',
-          ),
-          backgroundColor: TNTColors.primary,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final localizations = TNTLocalizationsProvider.of(context)?.localizations;
@@ -230,25 +204,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 _buildDeviceTokenCard(isTamil),
                 const SizedBox(height: 16),
 
-                // 6. Test Delivery Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: isMasterEnabled ? () => _triggerTestPush(isTamil) : null,
-                    icon: const Icon(Icons.send_rounded, size: 16),
-                    label: Text(
-                      isTamil ? 'சோதனை அறிவிப்பை அனுப்பு' : 'Send Test Push Notification',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: TNTColors.primary,
-                      side: const BorderSide(color: TNTColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+
               ],
             ),
           ),

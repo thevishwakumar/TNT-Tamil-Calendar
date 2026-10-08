@@ -39,110 +39,37 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     }
   }
 
-  void _openSpecialDayForm([SpecialDay? sp]) {
-    final nameTaCtrl = TextEditingController(text: sp?.titleTa ?? '');
-    final nameEnCtrl = TextEditingController(text: sp?.title ?? '');
-    final descTaCtrl = TextEditingController(text: sp?.descriptionTa ?? '');
-    final descEnCtrl = TextEditingController(text: sp?.description ?? '');
-    DateTime selectedDate = sp?.date ?? DateTime.now();
-    String category = sp?.category ?? 'Pradosham';
-
-    showDialog(
+  Future<void> _confirmDeleteSpecialDay(SpecialDay sp) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: TNTColors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            title: Text(sp == null ? 'Add Special Observance Day' : 'Edit Special Day', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AdminTextField(controller: nameTaCtrl, label: 'சிறப்பு நாள் பெயர் (Tamil)', isRequired: true),
-                  const SizedBox(height: 12),
-                  AdminTextField(controller: nameEnCtrl, label: 'Special Day Name (English)', isRequired: true),
-                  const SizedBox(height: 12),
-                  AdminDatePicker(
-                    label: 'Observance Date',
-                    selectedDate: selectedDate,
-                    onDateSelected: (d) => setDialogState(() => selectedDate = d),
-                  ),
-                  const SizedBox(height: 12),
-                  AdminDropdown<String>(
-                    label: 'Observance Category',
-                    value: category,
-                    items: {
-                      'Amavasai',
-                      'Pournami',
-                      'Pradosham',
-                      'Ekadashi',
-                      'Sashti',
-                      'Sankatahara Chaturthi',
-                      'Krithigai',
-                      'Government Holiday',
-                      category
-                    }.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => category = val);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  AdminTextField(controller: descTaCtrl, label: 'விரத முறை / விளக்கம் (Tamil)', maxLines: 2),
-                  const SizedBox(height: 12),
-                  AdminTextField(controller: descEnCtrl, label: 'Ritual Notes (English)', maxLines: 2),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: TNTColors.primary, foregroundColor: Colors.white),
-                onPressed: () async {
-                  if (nameTaCtrl.text.trim().isEmpty || nameEnCtrl.text.trim().isEmpty) return;
-
-                  final saved = SpecialDay(
-                    isHoliday: false,
-                    id: sp?.id ?? 'sp-${DateTime.now().millisecondsSinceEpoch}',
-                    titleTa: nameTaCtrl.text.trim(),
-                    title: nameEnCtrl.text.trim(),
-                    date: selectedDate,
-                    descriptionTa: descTaCtrl.text.trim(),
-                    description: descEnCtrl.text.trim(),
-                    category: category,
-                    // isApproved: true,
-                  );
-
-                  await _repo.saveSpecialDay(saved);
-                  Navigator.of(ctx).pop();
-                  _loadSpecialDays();
-                },
-                child: const Text('Save Special Day'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TNTColors.background,
-      appBar: AppBar(
-        title: const Text('Special Days Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
+      builder: (context) => AlertDialog(
         backgroundColor: TNTColors.surface,
-        elevation: 0,
-        actions: [  
+        title: const Text('Delete Special Day?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete "${sp.title}"?'),
+
+        actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), 
+            icon: const Icon(Icons.download_rounded, color: TNTColors.primary),
+            tooltip: 'Download CSV Template',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('CSV Format: date (YYYY-MM-DD), name_ta, name_en, category, desc_ta, desc_en')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file_rounded, color: TNTColors.primary),
+            tooltip: 'Bulk Upload CSV',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Use Bulk Import tool in Admin Settings for large uploads.')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),
             onPressed: () => _loadSpecialDays(forceRefresh: true),
-            tooltip: 'Refresh from Navamsha API',
+            tooltip: 'Refresh',
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -211,9 +138,20 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
                         ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
-                      onPressed: () => _openSpecialDayForm(sp),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
+                          tooltip: 'Edit',
+                          onPressed: () => _openSpecialDayForm(sp),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                          tooltip: 'Delete',
+                          onPressed: () => _confirmDeleteSpecialDay(sp),
+                        ),
+                      ],
                     ),
                   ),
                 );

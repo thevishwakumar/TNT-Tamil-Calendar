@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../repositories/panchang_repository.dart';
-import '../../models/tnt_models.dart';
+import '../../../repositories/panchang_repository.dart';
+import '../../../models/tnt_models.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
@@ -44,8 +44,8 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Auto-generating special days for current month...')));
 
       // Auto generate for current selected month
-      final int year = _selectedYear;
-      final int month = _selectedMonth;
+      final int year = DateTime.now().year;
+      final int month = DateTime.now().month;
       final daysInMonth = DateTime(year, month + 1, 0).day;
 
       for (int i = 1; i <= daysInMonth; i++) {
@@ -154,42 +154,7 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     }
   }
 
-  Future<void> _confirmDeleteSpecialDay(SpecialDay sp) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TNTColors.surface,
-        title: const Text('Delete Special Day?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete "${sp.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
 
-    if (confirmed == true) {
-      setState(() => _isLoading = true);
-      try {
-        await _repo.deleteSpecialDay(sp.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Special day deleted successfully'), backgroundColor: Colors.green));
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-        }
-      }
-      _loadSpecialDays();
-    }
-  }
 
   void _openSpecialDayForm([SpecialDay? sp]) {
     final nameTaCtrl = TextEditingController(text: sp?.titleTa ?? '');

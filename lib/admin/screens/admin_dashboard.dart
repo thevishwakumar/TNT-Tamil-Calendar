@@ -394,7 +394,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Expanded(
                 child: _buildSummaryCard(
                   'Catering Leads',
-                  _isLoadingMetrics ? '...' : (_cateringCounts != null ? '${_cateringCounts!['new']}' : '0'),
+                  _isLoadingMetrics ? '...' : (_cateringCounts != null ? '${_cateringCounts!['total'] ?? _cateringCounts!['new'] ?? 0}' : '0'),
                   Icons.room_service_rounded,
                   Colors.teal,
                   () => setState(() => _currentSection = AdminSection.cateringLeads),

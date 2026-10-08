@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/tnt_models.dart';
 import '../services/supabase_service.dart';
@@ -437,9 +438,51 @@ class SpecialDaysRepository {
       mergedMap[overriddenKey] = supItem;
     }
 
-    final result = mergedMap.values.toList();
+    final deletedKeys = await getDeletedSpecialDayKeys();
+    final result = mergedMap.values.where((sp) {
+      if (sp.id.isNotEmpty && deletedKeys.contains(sp.id)) return false;
+      final kTa = '${sp.date.year}-${sp.date.month}-${sp.date.day}_${sp.titleTa}';
+      final kEn = '${sp.date.year}-${sp.date.month}-${sp.date.day}_${sp.title}';
+      if (deletedKeys.contains(kTa) || deletedKeys.contains(kEn)) return false;
+      return true;
+    }).toList();
     result.sort((a, b) => a.date.compareTo(b.date));
     return result;
+  }
+
+  static const String _deletedSpecialDaysKey = 'tnt_deleted_special_days_keys';
+
+  Future<void> markSpecialDayDeleted(SpecialDay sp) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_deletedSpecialDaysKey) ?? [];
+      final key1 = sp.id;
+      final key2 = '${sp.date.year}-${sp.date.month}-${sp.date.day}_${sp.titleTa}';
+      final key3 = '${sp.date.year}-${sp.date.month}-${sp.date.day}_${sp.title}';
+      final set = list.toSet()..addAll([if (key1.isNotEmpty) key1, key2, key3]);
+      await prefs.setStringList(_deletedSpecialDaysKey, set.toList());
+    } catch (_) {}
+  }
+
+  Future<void> unmarkSpecialDayDeleted(SpecialDay sp) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_deletedSpecialDaysKey) ?? [];
+      final set = list.toSet();
+      if (sp.id.isNotEmpty) set.remove(sp.id);
+      set.remove('${sp.date.year}-${sp.date.month}-${sp.date.day}_${sp.titleTa}');
+      set.remove('${sp.date.year}-${sp.date.month}-${sp.date.day}_${sp.title}');
+      await prefs.setStringList(_deletedSpecialDaysKey, set.toList());
+    } catch (_) {}
+  }
+
+  Future<Set<String>> getDeletedSpecialDayKeys() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return (prefs.getStringList(_deletedSpecialDaysKey) ?? []).toSet();
+    } catch (_) {
+      return {};
+    }
   }
 }
 
@@ -513,9 +556,51 @@ class FestivalRepository {
       mergedMap[supItem.id] = supItem;
     }
 
-    final result = mergedMap.values.toList();
+    final deletedKeys = await getDeletedFestivalKeys();
+    final result = mergedMap.values.where((f) {
+      if (f.id.isNotEmpty && deletedKeys.contains(f.id)) return false;
+      final kTa = '${f.date.year}-${f.date.month}-${f.date.day}_${f.nameTa}';
+      final kEn = '${f.date.year}-${f.date.month}-${f.date.day}_${f.name}';
+      if (deletedKeys.contains(kTa) || deletedKeys.contains(kEn)) return false;
+      return true;
+    }).toList();
     result.sort((a, b) => a.date.compareTo(b.date));
     return result;
+  }
+
+  static const String _deletedFestivalsKey = 'tnt_deleted_festival_keys';
+
+  Future<void> markFestivalDeleted(Festival f) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_deletedFestivalsKey) ?? [];
+      final key1 = f.id;
+      final key2 = '${f.date.year}-${f.date.month}-${f.date.day}_${f.nameTa}';
+      final key3 = '${f.date.year}-${f.date.month}-${f.date.day}_${f.name}';
+      final set = list.toSet()..addAll([if (key1.isNotEmpty) key1, key2, key3]);
+      await prefs.setStringList(_deletedFestivalsKey, set.toList());
+    } catch (_) {}
+  }
+
+  Future<void> unmarkFestivalDeleted(Festival f) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_deletedFestivalsKey) ?? [];
+      final set = list.toSet();
+      if (f.id.isNotEmpty) set.remove(f.id);
+      set.remove('${f.date.year}-${f.date.month}-${f.date.day}_${f.nameTa}');
+      set.remove('${f.date.year}-${f.date.month}-${f.date.day}_${f.name}');
+      await prefs.setStringList(_deletedFestivalsKey, set.toList());
+    } catch (_) {}
+  }
+
+  Future<Set<String>> getDeletedFestivalKeys() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return (prefs.getStringList(_deletedFestivalsKey) ?? []).toSet();
+    } catch (_) {
+      return {};
+    }
   }
 }
 

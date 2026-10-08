@@ -429,12 +429,13 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
   }
 
   Future<void> _confirmDeleteFestival(Festival fst) async {
+    final displayName = fst.nameTa.isNotEmpty ? fst.nameTa : fst.name;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: TNTColors.surface,
         title: const Text('Delete Festival?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete "${fst.name}"?'),
+        content: Text('Are you sure you want to delete "$displayName" (${fst.name})?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -452,16 +453,29 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
     if (confirmed == true) {
       setState(() => _isLoading = true);
       try {
-        await _repo.deleteFestival(fst.id);
+        await _repo.deleteFestival(fst.id, festival: fst);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Festival deleted successfully'), backgroundColor: Colors.green));
+          setState(() {
+            _festivals.removeWhere((item) =>
+                (item.id.isNotEmpty && item.id == fst.id) ||
+                (item.date.year == fst.date.year &&
+                    item.date.month == fst.date.month &&
+                    item.date.day == fst.date.day &&
+                    (item.nameTa == fst.nameTa || item.name == fst.name)));
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Festival "$displayName" deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
         }
       }
-      _loadFestivals();
+      _loadFestivals(forceRefresh: true);
     }
   }
 
@@ -519,6 +533,16 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
               ),
             ),
             actions: [
+              if (fest != null)
+                TextButton.icon(
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: const Text('Delete'),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _confirmDeleteFestival(fest);
+                  },
+                ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),
@@ -659,9 +683,20 @@ class _AdminFestivalsScreenState extends State<AdminFestivalsScreen> {
                         ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
-                      onPressed: () => _openFestivalForm(fest),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: TNTColors.primary),
+                          tooltip: 'Edit',
+                          onPressed: () => _openFestivalForm(fest),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                          tooltip: 'Delete',
+                          onPressed: () => _confirmDeleteFestival(fest),
+                        ),
+                      ],
                     ),
                   ),
                 );

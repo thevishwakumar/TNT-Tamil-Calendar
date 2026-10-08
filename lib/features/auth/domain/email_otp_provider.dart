@@ -25,22 +25,25 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
   @override
   Future<bool> sendOtp(String email, {String? userId}) async {
     final client = _client ?? SupabaseService().client;
+    final cleanEmail = email.trim().toLowerCase();
 
+    // 1. Try resending signup confirmation OTP first (for newly registered accounts)
     try {
-      await client.auth.signInWithOtp(
-        email: email.trim().toLowerCase(),
-        shouldCreateUser: false, // Don't create if doesn't exist? Wait, we need it to create if signing up.
+      await client.auth.resend(
+        type: OtpType.signup,
+        email: cleanEmail,
       );
       return true;
     } catch (e) {
+      // 2. If resend signup fails, fallback to signInWithOtp
       try {
         await client.auth.signInWithOtp(
-          email: email.trim().toLowerCase(),
-          shouldCreateUser: true,
+          email: cleanEmail,
+          shouldCreateUser: false,
         );
         return true;
       } catch (e2) {
-        print('Error sending OTP: ');
+        print('Error sending OTP: $e2');
         return false;
       }
     }
@@ -49,16 +52,33 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
   @override
   Future<bool> verifyOtp(String email, String otp) async {
     final client = _client ?? SupabaseService().client;
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanOtp = otp.trim();
 
+    // 1. Try OtpType.signup first (for new signup confirmation)
     try {
       final response = await client.auth.verifyOTP(
-        email: email.trim().toLowerCase(),
-        token: otp.trim(),
+        email: cleanEmail,
+        token: cleanOtp,
+        type: OtpType.signup,
+      );
+      if (response.session != null || response.user != null) {
+        return true;
+      }
+    } catch (e) {
+      print('Signup OTP verification attempt error: $e');
+    }
+
+    // 2. Fallback to OtpType.email (magic link or signInWithOtp token)
+    try {
+      final response = await client.auth.verifyOTP(
+        email: cleanEmail,
+        token: cleanOtp,
         type: OtpType.email,
       );
-      return response.session != null;
-    } catch (e) {
-      print('Error verifying OTP: ');
+      return response.session != null || response.user != null;
+    } catch (e2) {
+      print('Email OTP verification attempt error: $e2');
       return false;
     }
   }

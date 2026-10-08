@@ -202,6 +202,7 @@ class AdminContentRepository {
   }
 
   Future<Festival> saveFestival(Festival festival) async {
+    await FestivalRepository().unmarkFestivalDeleted(festival);
     if (_db.isInitialized) {
       final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(festival.id);
       final dateStr = '${festival.date.year.toString().padLeft(4, '0')}-${festival.date.month.toString().padLeft(2, '0')}-${festival.date.day.toString().padLeft(2, '0')}';
@@ -238,6 +239,7 @@ class AdminContentRepository {
   }
 
   Future<SpecialDay> saveSpecialDay(SpecialDay sp) async {
+    await SpecialDaysRepository().unmarkSpecialDayDeleted(sp);
     if (_db.isInitialized) {
       final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(sp.id);
       final dateStr = '${sp.date.year.toString().padLeft(4, '0')}-${sp.date.month.toString().padLeft(2, '0')}-${sp.date.day.toString().padLeft(2, '0')}';
@@ -461,21 +463,53 @@ class AdminContentRepository {
     return count;
   }
 
-  Future<bool> deleteSpecialDay(String id) async {
+  Future<bool> deleteSpecialDay(String id, {SpecialDay? specialDay}) async {
+    if (specialDay != null) {
+      await SpecialDaysRepository().markSpecialDayDeleted(specialDay);
+    }
     if (_db.isInitialized) {
-      await _db.client.from('special_days').delete().eq('id', id);
-      await logAudit(action: 'DELETE', module: 'SPECIAL_DAYS', recordId: id);
+      final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(id);
+      if (isUuid) {
+        await _db.client.from('special_days').delete().eq('id', id);
+      } else if (specialDay != null) {
+        final dateStr = '${specialDay.date.year.toString().padLeft(4, '0')}-${specialDay.date.month.toString().padLeft(2, '0')}-${specialDay.date.day.toString().padLeft(2, '0')}';
+        var q = _db.client.from('special_days').delete().eq('date', dateStr);
+        if (specialDay.titleTa.isNotEmpty && specialDay.title.isNotEmpty) {
+          await q.or('name_tamil.eq.${specialDay.titleTa},name_english.eq.${specialDay.title}');
+        } else if (specialDay.titleTa.isNotEmpty) {
+          await q.eq('name_tamil', specialDay.titleTa);
+        } else {
+          await q.eq('name_english', specialDay.title);
+        }
+      }
+      await logAudit(action: 'DELETE', module: 'SPECIAL_DAYS', recordId: id.isNotEmpty ? id : (specialDay?.title ?? 'unknown'));
       return true;
     }
-    return false;
+    return true;
   }
 
-  Future<bool> deleteFestival(String id) async {
+  Future<bool> deleteFestival(String id, {Festival? festival}) async {
+    if (festival != null) {
+      await FestivalRepository().markFestivalDeleted(festival);
+    }
     if (_db.isInitialized) {
-      await _db.client.from('festivals').delete().eq('id', id);
-      await logAudit(action: 'DELETE', module: 'FESTIVALS', recordId: id);
+      final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(id);
+      if (isUuid) {
+        await _db.client.from('festivals').delete().eq('id', id);
+      } else if (festival != null) {
+        final dateStr = '${festival.date.year.toString().padLeft(4, '0')}-${festival.date.month.toString().padLeft(2, '0')}-${festival.date.day.toString().padLeft(2, '0')}';
+        var q = _db.client.from('festivals').delete().eq('date', dateStr);
+        if (festival.nameTa.isNotEmpty && festival.name.isNotEmpty) {
+          await q.or('name_tamil.eq.${festival.nameTa},name_english.eq.${festival.name}');
+        } else if (festival.nameTa.isNotEmpty) {
+          await q.eq('name_tamil', festival.nameTa);
+        } else {
+          await q.eq('name_english', festival.name);
+        }
+      }
+      await logAudit(action: 'DELETE', module: 'FESTIVALS', recordId: id.isNotEmpty ? id : (festival?.name ?? 'unknown'));
       return true;
     }
-    return false;
+    return true;
   }
 }

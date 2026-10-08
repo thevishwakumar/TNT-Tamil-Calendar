@@ -38,6 +38,9 @@ class AuthStateManager extends ChangeNotifier {
   UserProfile? get currentProfile => _currentProfile;
   UserPreferences? get currentPreferences => _currentPreferences;
   String? get errorMessage => _errorMessage;
+  String? get currentEmail =>
+      _currentProfile?.email ??
+      (SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser?.email : null);
 
   bool get isLoading => _state == AppAuthState.loading;
   bool get isAuthenticated =>
@@ -150,7 +153,7 @@ class AuthStateManager extends ChangeNotifier {
           fullName: authUser?.userMetadata?['full_name'] as String? ?? email.split('@')[0],
           phoneNumber: authUser?.userMetadata?['phone'] as String?,
           role: 'user', // strictly default USER role
-          accountStatus: isEmailConfirmed ? 'PENDING_MOBILE_VERIFICATION' : 'PENDING_EMAIL_VERIFICATION',
+          accountStatus: isEmailConfirmed ? 'ACTIVE' : 'PENDING_EMAIL_VERIFICATION',
           emailVerifiedAt: isEmailConfirmed ? DateTime.now() : null,
           createdAt: DateTime.now(),
         );
@@ -175,7 +178,7 @@ class AuthStateManager extends ChangeNotifier {
         _state = AppAuthState.authenticatedAdmin;
       } else if (!isEmailConfirmed && profile.accountStatus == 'PENDING_EMAIL_VERIFICATION') {
         _state = AppAuthState.pendingEmailVerification;
-      } else if ((profile.accountStatus == 'PENDING_MOBILE_VERIFICATION' || profile.phoneVerifiedAt == null) && (profile.phoneNumber != null && profile.phoneNumber!.isNotEmpty)) {
+      } else if (profile.accountStatus == 'PENDING_MOBILE_VERIFICATION') {
         _state = AppAuthState.pendingMobileVerification;
       } else {
         _state = AppAuthState.authenticatedUser;
@@ -264,8 +267,6 @@ class AuthStateManager extends ChangeNotifier {
           _currentProfile = pendingProfile;
           _state = AppAuthState.pendingEmailVerification;
           notifyListeners();
-          // Automatically dispatch 6-digit Email OTP upon signup
-          await sendEmailOtp();
           return;
         }
       }
@@ -281,32 +282,70 @@ class AuthStateManager extends ChangeNotifier {
 
   /// Dispatch 6-digit numeric OTP to current profile's email
   Future<bool> sendEmailOtp() async {
-    if (_currentProfile == null) return false;
-    return await _emailOtpProvider.sendOtp(_currentProfile!.email, userId: _currentProfile!.id);
+    final email = currentEmail;
+    if (email == null) return false;
+    return await _emailOtpProvider.sendOtp(email, userId: _currentProfile?.id);
   }
 
-  /// Verify 6-digit Email OTP and progress user to Mobile Verification or Active
+  /// Verify 6-digit Email OTP and progress user directly to Active state
   Future<bool> verifyEmailOtp(String otp) async {
-    if (_currentProfile == null) return false;
+    final email = currentEmail;
+    if (email == null) return false;
 
-    final isOtpValid = await _emailOtpProvider.verifyOtp(_currentProfile!.email, otp);
+    final isOtpValid = await _emailOtpProvider.verifyOtp(email, otp);
     if (!isOtpValid) return false;
 
     try {
-      final hasMobile = _currentProfile!.phoneNumber != null && _currentProfile!.phoneNumber!.isNotEmpty;
-      final nextStatus = hasMobile ? 'PENDING_MOBILE_VERIFICATION' : 'ACTIVE';
-      
-      final updated = _currentProfile!.copyWith(
-        emailVerifiedAt: DateTime.now(),
-        accountStatus: nextStatus,
-        updatedAt: DateTime.now(),
-      );
+      final currentUser = SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser : null;
+      final userId = _currentProfile?.id ?? currentUser?.id;
+      if (userId == null) return false;
+
+      UserProfile activeProfile;
+      if (_currentProfile != null) {
+        activeProfile = _currentProfile!.copyWith(
+          emailVerifiedAt: DateTime.now(),
+          accountStatus: 'ACTIVE',
+          updatedAt: DateTime.now(),
+        );
+      } else {
+        final fetched = await _profileRepo.fetchUserProfile(userId);
+        if (fetched != null) {
+          activeProfile = fetched.copyWith(
+            emailVerifiedAt: DateTime.now(),
+            accountStatus: 'ACTIVE',
+            updatedAt: DateTime.now(),
+          );
+        } else {
+          activeProfile = UserProfile(
+            id: userId,
+            email: email,
+            fullName: currentUser?.userMetadata?['full_name'] as String? ?? email.split('@')[0],
+            phoneNumber: currentUser?.userMetadata?['phone'] as String?,
+            role: 'user',
+            accountStatus: 'ACTIVE',
+            emailVerifiedAt: DateTime.now(),
+            createdAt: DateTime.now(),
+          );
+        }
+      }
 
       if (SupabaseService().isInitialized) {
-        await _profileRepo.upsertUserProfile(updated);
+        await _profileRepo.upsertUserProfile(activeProfile);
       }
-      _currentProfile = updated;
-      _state = hasMobile ? AppAuthState.pendingMobileVerification : AppAuthState.authenticatedUser;
+      _currentProfile = activeProfile;
+
+      // Ensure default user preferences
+      _currentPreferences = await _prefRepo.fetchUserPreferences(activeProfile.id) ??
+          UserPreferences(
+            userId: activeProfile.id,
+            language: 'ta',
+            location: 'Chennai',
+            notificationsEnabled: true,
+          );
+      await _prefRepo.savePreferences(_currentPreferences!);
+
+      final isSystemAdmin = activeProfile.isAdmin;
+      _state = isSystemAdmin ? AppAuthState.authenticatedAdmin : AppAuthState.authenticatedUser;
       _errorMessage = null;
       notifyListeners();
       return true;
@@ -319,27 +358,44 @@ class AuthStateManager extends ChangeNotifier {
 
   /// Check Email Verification Status from actual Supabase Auth state (Legacy/Auto fallback)
   Future<bool> checkEmailVerificationStatus() async {
-    if (_currentProfile == null) return false;
+    final email = currentEmail;
+    if (email == null) return false;
 
     try {
       if (SupabaseService().isInitialized) {
         final res = await SupabaseService().client.auth.getUser();
         final user = res.user;
         if (user?.emailConfirmedAt != null) {
-          final hasMobile = _currentProfile!.phoneNumber != null && _currentProfile!.phoneNumber!.isNotEmpty;
-      final nextStatus = hasMobile ? 'PENDING_MOBILE_VERIFICATION' : 'ACTIVE';
-      
-      final updated = _currentProfile!.copyWith(
-        emailVerifiedAt: DateTime.now(),
-        accountStatus: nextStatus,
-        updatedAt: DateTime.now(),
-      );
+          final updated = (_currentProfile ??
+                  UserProfile(
+                    id: user!.id,
+                    email: email,
+                    fullName: user.userMetadata?['full_name'] as String? ?? email.split('@')[0],
+                    role: 'user',
+                    accountStatus: 'ACTIVE',
+                    createdAt: DateTime.now(),
+                  ))
+              .copyWith(
+            emailVerifiedAt: DateTime.now(),
+            accountStatus: 'ACTIVE',
+            updatedAt: DateTime.now(),
+          );
 
-      if (SupabaseService().isInitialized) {
-        await _profileRepo.upsertUserProfile(updated);
-      }
-      _currentProfile = updated;
-      _state = hasMobile ? AppAuthState.pendingMobileVerification : AppAuthState.authenticatedUser;
+          if (SupabaseService().isInitialized) {
+            await _profileRepo.upsertUserProfile(updated);
+          }
+          _currentProfile = updated;
+
+          _currentPreferences = await _prefRepo.fetchUserPreferences(updated.id) ??
+              UserPreferences(
+                userId: updated.id,
+                language: 'ta',
+                location: 'Chennai',
+                notificationsEnabled: true,
+              );
+          await _prefRepo.savePreferences(_currentPreferences!);
+
+          _state = updated.isAdmin ? AppAuthState.authenticatedAdmin : AppAuthState.authenticatedUser;
           notifyListeners();
           return true;
         }
@@ -347,15 +403,16 @@ class AuthStateManager extends ChangeNotifier {
       }
 
       return false;
-      } catch (e) {
+    } catch (e) {
       return false;
     }
   }
 
   /// Resend 6-digit email OTP (enforces 60s cooldown on edge function/client)
   Future<void> resendVerificationEmail() async {
-    if (_currentProfile == null) return;
-    await _emailOtpProvider.resendOtp(_currentProfile!.email, userId: _currentProfile!.id);
+    final email = currentEmail;
+    if (email == null) return;
+    await _emailOtpProvider.resendOtp(email, userId: _currentProfile?.id);
   }
 
   /// Send 6-digit Mobile OTP

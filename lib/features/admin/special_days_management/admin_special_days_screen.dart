@@ -407,8 +407,16 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
     if (confirmed == true) {
       setState(() => _isLoading = true);
       try {
-        await _repo.deleteSpecialDay(sp.id);
+        await _repo.deleteSpecialDay(sp.id, specialDay: sp);
         if (mounted) {
+          setState(() {
+            _specialDays.removeWhere((item) =>
+                (item.id.isNotEmpty && item.id == sp.id) ||
+                (item.date.year == sp.date.year &&
+                    item.date.month == sp.date.month &&
+                    item.date.day == sp.date.day &&
+                    (item.titleTa == sp.titleTa || item.title == sp.title)));
+          });
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Special day deleted successfully'), backgroundColor: Colors.green));
         }
       } catch (e) {
@@ -416,7 +424,7 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
         }
       }
-      _loadSpecialDays();
+      _loadSpecialDays(forceRefresh: true);
     }
   }
 
@@ -479,6 +487,16 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
               ),
             ),
             actions: [
+              if (sp != null)
+                TextButton.icon(
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: const Text('Delete'),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _confirmDeleteSpecialDay(sp);
+                  },
+                ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),

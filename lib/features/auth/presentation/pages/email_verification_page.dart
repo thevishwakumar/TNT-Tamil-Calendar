@@ -35,8 +35,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   void initState() {
     super.initState();
     _startCooldown();
-    // Dispatch OTP on initial mount
-    widget.authStateManager.sendEmailOtp();
   }
 
   @override
@@ -152,7 +150,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   Widget build(BuildContext context) {
     final localizations = TNTLocalizationsProvider.of(context)?.localizations;
     final isTamil = Localizations.localeOf(context).languageCode == 'ta';
-    final userEmail = widget.authStateManager.currentProfile?.email ?? 'your email';
+    final userEmail = widget.authStateManager.currentEmail ?? 'your email';
     final maskedEmail = _maskEmail(userEmail);
 
     return Scaffold(

@@ -274,6 +274,50 @@ class _AdminCampaignsScreenState extends State<AdminCampaignsScreen> with Single
     );
   }
 
+  Future<void> _confirmDeleteCampaign(NotificationCampaign c) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: TNTColors.surface,
+        title: const Text('Delete Campaign?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete "${c.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: TNTColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        final success = await _repository.deleteCampaign(c.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success ? 'Campaign deleted successfully' : 'Failed to delete campaign'),
+              backgroundColor: success ? Colors.green : Colors.red,
+            )
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          );
+        }
+      }
+      _loadCampaigns();
+    }
+  }
+
   Widget _buildCampaignCard(NotificationCampaign c) {
     return Card(
       color: TNTColors.surface,
@@ -388,6 +432,26 @@ class _AdminCampaignsScreenState extends State<AdminCampaignsScreen> with Single
                             builder: (_) => AdminNotificationPreviewDialog(campaign: c),
                           );
                         },
+                      ),
+                      if (c.status == 'DRAFT' || c.status == 'SCHEDULED')
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded, size: 18, color: Colors.blue),
+                          tooltip: 'Edit',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => AdminCampaignCreateScreen(
+                                  initialCampaign: c,
+                                  onSaved: _loadCampaigns,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                        tooltip: 'Delete',
+                        onPressed: () => _confirmDeleteCampaign(c),
                       ),
                       const Icon(Icons.chevron_right_rounded, size: 16, color: TNTColors.textMuted),
                     ],

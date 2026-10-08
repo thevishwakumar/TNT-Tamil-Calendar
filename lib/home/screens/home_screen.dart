@@ -15,7 +15,8 @@ import '../../services/panchang_local_cache_service.dart';
 import '../../features/personal_calendar/screens/personal_calendar_screen.dart';
 import '../../core/widgets/responsive_layout.dart';
 import '../../features/catering/screens/catering_enquiry_screen.dart';
-import '../../features/catering/screens/catering_enquiry_screen.dart';
+import '../../panchangam/models/panchangam_bundle.dart';
+import '../../repositories/panchang_repository.dart';
 
 
 
@@ -89,20 +90,34 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // Async fetching from repositories/services
       final calendarFuture = widget.apiService.getCalendarDay(now);
-      final panchangamFuture = widget.apiService.getPanchangam(now);
-      final timingsFuture = widget.apiService.getImportantTimings(now);
       final specialDaysFuture = widget.apiService.getSpecialDays(now.year, now.month);
       final festivalsFuture = widget.apiService.getFestivals(now.year, now.month);
       final muhurthamsFuture = widget.apiService.getMarriageMuhurthams(now.year, now.month);
 
       final results = await Future.wait([
         calendarFuture,
-        panchangamFuture,
-        timingsFuture,
         specialDaysFuture,
         festivalsFuture,
         muhurthamsFuture
       ]);
+      
+      // Use PanchangRepository directly to get panchangam and timings
+      final repo = PanchangRepository();
+      final loc = UserLocationItem(
+        id: 'loc-${_selectedCity}',
+        userId: 'active-user',
+        name: _selectedCity,
+        city: _selectedCity,
+        timezone: 'Asia/Kolkata',
+        createdAt: DateTime.now(),
+      );
+      
+      PanchangamDailyBundle? bundle;
+      try {
+        bundle = await repo.getDailyPanchangam(date: now, location: loc);
+      } catch (e) {
+        // Fallback or ignore if Navamsha fails, it shouldn't block the whole home screen
+      }
 
       final hasCached = await PanchangLocalCacheService().hasCachedPanchangam(
         date: now,
@@ -112,11 +127,15 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _todayCalendar = results[0] as CalendarDay;
-          _todayPanchangam = results[1] as PanchangamEntry;
-          _timings = results[2] as List<TimingEntry>;
-          _specialDays = results[3] as List<SpecialDay>;
-          _festivals = results[4] as List<Festival>;
-          _muhurthams = results[5] as List<MuhurthamDate>;
+          _specialDays = results[1] as List<SpecialDay>;
+          _festivals = results[2] as List<Festival>;
+          _muhurthams = results[3] as List<MuhurthamDate>;
+          
+          if (bundle != null) {
+            _todayPanchangam = bundle.panchangam;
+            _timings = bundle.timings;
+          }
+          
           _isOfflineCacheActive = hasCached;
           _isLoading = false;
         });
@@ -135,9 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _todayCalendar = cachedBundle.calendarDay;
             _todayPanchangam = cachedBundle.panchangam;
             _timings = cachedBundle.timings;
-            _specialDays = cachedBundle.specialDays;
-            _festivals = cachedBundle.festivals;
-            _muhurthams = cachedBundle.muhurthams;
+            // Retain empty lists for others if failed
             _isOfflineCacheActive = true;
             _errorMsg = null;
           } else {

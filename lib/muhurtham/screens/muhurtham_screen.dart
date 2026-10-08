@@ -279,7 +279,7 @@ class _MuhurthamScreenState extends State<MuhurthamScreen> with AutomaticKeepAli
             ),
           ],
         ),
-        actions: [ const TNTBrandHeader(), 
+        actions: [ 
           // City selector button
           InkWell(
             onTap: _openCitySelector,

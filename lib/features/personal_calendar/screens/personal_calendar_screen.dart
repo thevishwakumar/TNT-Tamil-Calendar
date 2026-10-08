@@ -98,7 +98,7 @@ class _PersonalCalendarScreenState extends State<PersonalCalendarScreen> {
       appBar: AppBar(
         title: const Text('My Calendar'),
         backgroundColor: TNTColors.surface,
-        actions: [ const TNTBrandHeader(), 
+        actions: [ 
           IconButton(icon: const Icon(Icons.add), onPressed: _addEvent),
         ],
       ),

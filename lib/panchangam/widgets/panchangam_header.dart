@@ -131,7 +131,7 @@ class PanchangamHeader extends StatelessWidget {
                 onPressed: isRefreshing ? null : onRefreshTap,
               ),
               const SizedBox(width: 8),
-              const TNTBrandHeader(),
+              // removed TNTBrandHeader to fix overflow
             ],
           ),
         ),

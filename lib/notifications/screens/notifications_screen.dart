@@ -204,7 +204,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ],
               ],
             ),
-            actions: [ const TNTBrandHeader(), 
+            actions: [ 
               // Mark all as read button
               if (unreadCount > 0) ...[
                 TextButton(

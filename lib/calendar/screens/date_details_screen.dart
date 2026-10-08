@@ -8,6 +8,8 @@ import '../../services/supabase_service.dart';
 import '../../special_days/screens/special_day_detail_screen.dart';
 import '../../festivals/screens/festival_detail_screen.dart';
 import '../../muhurtham/screens/muhurtham_detail_screen.dart';
+import '../../panchangam/models/panchangam_bundle.dart';
+import '../../repositories/panchang_repository.dart';
 
 class DateDetailsScreen extends StatefulWidget {
   final DateTime date;
@@ -47,36 +49,56 @@ class _DateDetailsScreenState extends State<DateDetailsScreen> {
     });
 
     try {
+      final repo = PanchangRepository();
+      final loc = UserLocationItem(
+        id: 'loc-Chennai',
+        userId: 'active-user',
+        name: 'Chennai',
+        city: 'Chennai',
+        timezone: 'Asia/Kolkata',
+        createdAt: DateTime.now(),
+      );
+
+      PanchangamDailyBundle? bundle;
+      try {
+        bundle = await repo.getDailyPanchangam(date: widget.date, location: loc);
+      } catch (e) {
+        // Fallback or ignore if Navamsha fails
+      }
+
+      final specialDaysFuture = widget.apiService.getSpecialDays(widget.date.year, widget.date.month).catchError((_) => <SpecialDay>[]);
+      final festivalsFuture = widget.apiService.getFestivals(widget.date.year, widget.date.month).catchError((_) => <Festival>[]);
+      final muhurthamsFuture = widget.apiService.getMarriageMuhurthams(widget.date.year, widget.date.month).catchError((_) => <MuhurthamDate>[]);
+
       final futures = await Future.wait([
-        widget.apiService.getCalendarDay(widget.date),
-        widget.apiService.getPanchangam(widget.date),
-        widget.apiService.getImportantTimings(widget.date),
-        widget.apiService.getSpecialDays(widget.date.year, widget.date.month),
-        widget.apiService.getFestivals(widget.date.year, widget.date.month),
-        widget.apiService.getMarriageMuhurthams(widget.date.year, widget.date.month),
+        specialDaysFuture,
+        festivalsFuture,
+        muhurthamsFuture
       ]);
 
       setState(() {
-        _calendarDay = futures[0] as CalendarDay;
-        _panchangam = futures[1] as PanchangamEntry;
-        _timings = futures[2] as List<TimingEntry>;
-        
+        if (bundle != null) {
+          _calendarDay = bundle.calendarDay;
+          _panchangam = bundle.panchangam;
+          _timings = bundle.timings;
+        }
+
         // Filter special days, festivals and muhurthams specifically for the selected date
-        final allSpecials = futures[3] as List<SpecialDay>;
+        final allSpecials = futures[0] as List<SpecialDay>;
         _specialDays = allSpecials.where((s) => 
           s.date.day == widget.date.day && 
           s.date.month == widget.date.month && 
           s.date.year == widget.date.year
         ).toList();
 
-        final allFestivals = futures[4] as List<Festival>;
+        final allFestivals = futures[1] as List<Festival>;
         _festivals = allFestivals.where((f) => 
           f.date.day == widget.date.day && 
           f.date.month == widget.date.month && 
           f.date.year == widget.date.year
         ).toList();
 
-        final allMuhurthams = futures[5] as List<MuhurthamDate>;
+        final allMuhurthams = futures[2] as List<MuhurthamDate>;
         _muhurthams = allMuhurthams.where((m) => 
           m.date.day == widget.date.day && 
           m.date.month == widget.date.month && 
@@ -90,7 +112,10 @@ class _DateDetailsScreenState extends State<DateDetailsScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMsg = e.toString();
+        // Only set error message if we really don't have calendar day at all
+        if (_calendarDay == null) {
+          _errorMsg = e.toString();
+        }
       });
     }
   }

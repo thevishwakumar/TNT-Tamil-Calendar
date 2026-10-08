@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
@@ -96,7 +95,7 @@ class _AdminBulkImportScreenState extends State<AdminBulkImportScreen> {
           preferredSize: const Size.fromHeight(1),
           child: Container(color: TNTColors.border, height: 1),
         ),
-      actions: const [TNTBrandHeader()],
+      actions: const [],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

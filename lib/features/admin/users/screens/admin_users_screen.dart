@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../models/tnt_models.dart';
@@ -203,7 +202,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TNTColors.background,
-      appBar: AppBar(title: const Text('Users Management'), actions: const [TNTBrandHeader()],),
+      appBar: AppBar(title: const Text('Users Management'), actions: const [],),
       body: RefreshIndicator(
         onRefresh: () => _loadUsers(refresh: true),
         color: TNTColors.primary,

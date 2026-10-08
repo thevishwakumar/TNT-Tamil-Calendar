@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 
@@ -22,7 +21,7 @@ class _AdminPanchangamScreenState extends State<AdminPanchangamScreen> {
         title: const Text('Panchangam Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
         backgroundColor: TNTColors.surface,
         elevation: 0,
-        actions: [ const TNTBrandHeader(), 
+        actions: [  
           IconButton(
             icon: const Icon(Icons.calendar_today_rounded, color: TNTColors.primary),
             onPressed: () async {

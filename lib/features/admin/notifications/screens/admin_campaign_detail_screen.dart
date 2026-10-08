@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../models/tnt_models.dart';
@@ -114,7 +113,7 @@ class _AdminCampaignDetailScreenState extends State<AdminCampaignDetailScreen> {
     if (c == null) {
       return Scaffold(
         backgroundColor: TNTColors.background,
-        appBar: AppBar(title: const Text('Campaign Not Found'), backgroundColor: TNTColors.surface, actions: const [TNTBrandHeader()],),
+        appBar: AppBar(title: const Text('Campaign Not Found'), backgroundColor: TNTColors.surface, actions: const [],),
         body: const Center(child: Text('Requested notification campaign does not exist.')),
       );
     }
@@ -133,7 +132,7 @@ class _AdminCampaignDetailScreenState extends State<AdminCampaignDetailScreen> {
         ),
         backgroundColor: TNTColors.surface,
         elevation: 0,
-        actions: [ const TNTBrandHeader(), 
+        actions: [  
           IconButton(
             tooltip: 'Live Preview',
             icon: const Icon(Icons.preview_rounded, color: TNTColors.primary),

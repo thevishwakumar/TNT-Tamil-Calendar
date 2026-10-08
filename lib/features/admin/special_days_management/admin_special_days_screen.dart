@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../models/tnt_models.dart';
@@ -138,7 +137,7 @@ class _AdminSpecialDaysScreenState extends State<AdminSpecialDaysScreen> {
         title: const Text('Special Days Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary)),
         backgroundColor: TNTColors.surface,
         elevation: 0,
-        actions: [ const TNTBrandHeader(), 
+        actions: [  
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary), 
             onPressed: () => _loadSpecialDays(forceRefresh: true),

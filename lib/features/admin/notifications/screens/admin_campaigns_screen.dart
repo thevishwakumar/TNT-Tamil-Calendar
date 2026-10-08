@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../models/tnt_models.dart';
@@ -104,7 +103,7 @@ class _AdminCampaignsScreenState extends State<AdminCampaignsScreen> with Single
         ),
         backgroundColor: TNTColors.surface,
         elevation: 0,
-        actions: [ const TNTBrandHeader(), 
+        actions: [  
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded, color: TNTColors.primary),

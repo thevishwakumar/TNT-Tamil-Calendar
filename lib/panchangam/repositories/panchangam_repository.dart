@@ -77,8 +77,9 @@ class SupabasePanchangamProvider implements PanchangamDataProvider {
         isFromOfflineCache: bundle.isFromOfflineCache,
         cachedAt: bundle.cachedAt,
       );
-    } catch (e) {
-      return null;
+    } catch (e, stack) {
+      print('SupabasePanchangamProvider Error: $e\n$stack');
+      rethrow;
     }
   }
 }

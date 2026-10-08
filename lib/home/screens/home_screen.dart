@@ -88,20 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final now = DateTime.now();
       
-      // Async fetching from repositories/services
-      final calendarFuture = widget.apiService.getCalendarDay(now);
-      final specialDaysFuture = widget.apiService.getSpecialDays(now.year, now.month);
-      final festivalsFuture = widget.apiService.getFestivals(now.year, now.month);
-      final muhurthamsFuture = widget.apiService.getMarriageMuhurthams(now.year, now.month);
-
-      final results = await Future.wait([
-        calendarFuture,
-        specialDaysFuture,
-        festivalsFuture,
-        muhurthamsFuture
-      ]);
-      
-      // Use PanchangRepository directly to get panchangam and timings
+      // Use PanchangRepository directly to get panchangam, timings, and calendar day
       final repo = PanchangRepository();
       final loc = UserLocationItem(
         id: 'loc-${_selectedCity}',
@@ -118,6 +105,18 @@ class _HomeScreenState extends State<HomeScreen> {
       } catch (e) {
         // Fallback or ignore if Navamsha fails, it shouldn't block the whole home screen
       }
+      
+      // Async fetching from repositories/services
+      // Fallback to empty lists if they throw (e.g. Supabase uninitialized)
+      final specialDaysFuture = widget.apiService.getSpecialDays(now.year, now.month).catchError((_) => <SpecialDay>[]);
+      final festivalsFuture = widget.apiService.getFestivals(now.year, now.month).catchError((_) => <Festival>[]);
+      final muhurthamsFuture = widget.apiService.getMarriageMuhurthams(now.year, now.month).catchError((_) => <MuhurthamDate>[]);
+
+      final results = await Future.wait([
+        specialDaysFuture,
+        festivalsFuture,
+        muhurthamsFuture
+      ]);
 
       final hasCached = await PanchangLocalCacheService().hasCachedPanchangam(
         date: now,
@@ -126,12 +125,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (mounted) {
         setState(() {
-          _todayCalendar = results[0] as CalendarDay;
-          _specialDays = results[1] as List<SpecialDay>;
-          _festivals = results[2] as List<Festival>;
-          _muhurthams = results[3] as List<MuhurthamDate>;
+          _specialDays = results[0] as List<SpecialDay>;
+          _festivals = results[1] as List<Festival>;
+          _muhurthams = results[2] as List<MuhurthamDate>;
           
           if (bundle != null) {
+            _todayCalendar = bundle.calendarDay;
             _todayPanchangam = bundle.panchangam;
             _timings = bundle.timings;
           }

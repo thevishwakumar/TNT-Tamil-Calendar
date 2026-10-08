@@ -44,10 +44,11 @@ class _AdminCateringLeadsScreenState extends State<AdminCateringLeadsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading catering leads: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load leads')),
+          SnackBar(content: Text('Failed to load leads: $e')),
         );
       }
     }

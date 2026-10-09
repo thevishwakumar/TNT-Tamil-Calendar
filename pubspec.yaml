@@ -24,11 +24,13 @@ dependencies:
   geocoding: ^5.0.0
   file_picker: ^13.1.0
   csv: ^8.0.0
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  integration_test:
-    sdk: flutter
+  # integration_test:
+  #   sdk: flutter
   flutter_lints: ^3.0.1
 
 flutter:

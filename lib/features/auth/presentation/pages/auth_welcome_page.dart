@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/localization/tnt_localizations.dart';
 import '../../../../services/auth_state_manager.dart';
@@ -118,11 +118,17 @@ class _AuthWelcomePageState extends State<AuthWelcomePage> {
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Image.asset(
-                    'assets/images/tnt_logo.jpg',
-                    height: 220, // Increased size for readability
-                    width: 300, // Ensures full logo is visible
-                    fit: BoxFit.contain, // Prevents cropping
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 300,
+                      maxHeight: 260,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Image.asset(
+                      'assets/images/tnt_logo.jpg',
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                    ),
                   ),
                 ),
               ),

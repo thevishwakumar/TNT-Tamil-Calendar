@@ -800,13 +800,13 @@ class SpecialDay {
       tamilYear: json['tamil_year'] as String? ?? 'சுபகிருது வருடம்',
       dayOfWeekEn: json['day_of_week_en'] as String? ?? 'Monday',
       dayOfWeekTa: json['day_of_week_ta'] as String? ?? 'திங்கள்',
-      title: json['title'] as String? ?? json['name_english'] as String? ?? '',
-      titleTa: json['title_ta'] as String? ?? json['name_tamil'] as String? ?? '',
+      title: json['title'] as String? ?? json['name'] as String? ?? json['name_english'] as String? ?? '',
+      titleTa: json['title_ta'] as String? ?? json['name_ta'] as String? ?? json['name_tamil'] as String? ?? '',
       category: cat,
       categoryTa: json['category_ta'] as String? ?? _getCategoryTa(cat),
       isHoliday: json['is_holiday'] as bool? ?? false,
-      description: json['description'] as String? ?? json['description_english'] as String? ?? '',
-      descriptionTa: json['description_ta'] as String? ?? json['description_tamil'] as String? ?? '',
+      description: json['description'] as String? ?? json['description_english'] as String? ?? json['significance'] as String? ?? '',
+      descriptionTa: json['description_ta'] as String? ?? json['description_tamil'] as String? ?? json['significance_ta'] as String? ?? '',
       rituals: json['rituals'] as String? ?? '',
       ritualsTa: json['rituals_ta'] as String? ?? '',
       deity: json['deity'] as String? ?? 'Lord Shiva',
@@ -1005,7 +1005,7 @@ class Festival {
 
   factory Festival.fromJson(Map<String, dynamic> json) {
     final d = DateTime.parse(json['date'] as String);
-    final n = json['name'] as String? ?? json['name_english'] as String? ?? '';
+    final n = json['name'] as String? ?? json['name_english'] as String? ?? json['title'] as String? ?? '';
     final t = json['type'] as String? ?? 'hindu';
     return Festival(
       id: json['id'] as String? ?? '${d.year}-${d.month}-${d.day}-$n',
@@ -1016,13 +1016,13 @@ class Festival {
       dayOfWeekEn: json['day_of_week_en'] as String? ?? 'Monday',
       dayOfWeekTa: json['day_of_week_ta'] as String? ?? 'திங்கள்',
       name: n,
-      nameTa: json['name_ta'] as String? ?? json['name_tamil'] as String? ?? '',
+      nameTa: json['name_ta'] as String? ?? json['name_tamil'] as String? ?? json['title_ta'] as String? ?? '',
       type: t,
       typeTa: json['type_ta'] as String? ?? (t == 'government' ? 'அரசு விடுமுறை' : 'ஆன்மீகத் திருவிழா'),
       category: json['category'] as String? ?? 'Festivals',
       categoryTa: json['category_ta'] as String? ?? 'பண்டிகைகள்',
-      description: json['description'] as String? ?? json['description_english'] as String? ?? '',
-      descriptionTa: json['description_ta'] as String? ?? json['description_tamil'] as String? ?? '',
+      description: json['description'] as String? ?? json['description_english'] as String? ?? json['significance'] as String? ?? '',
+      descriptionTa: json['description_ta'] as String? ?? json['description_tamil'] as String? ?? json['significance_ta'] as String? ?? '',
       rituals: json['rituals'] as String? ?? '',
       ritualsTa: json['rituals_ta'] as String? ?? '',
       deity: json['deity'] as String? ?? '',
@@ -1145,6 +1145,8 @@ class NotificationItem {
   final String status; // 'SENT' | 'DELIVERED' | 'OPENED' | 'FAILED'
   final bool isRead;
   final String category; // 'marketing' | 'panchangam' | 'admin' | 'general'
+  final String? deepLink;
+  final String? mediaUrl;
 
   NotificationItem({
     required this.id,
@@ -1162,6 +1164,8 @@ class NotificationItem {
     this.status = 'SENT',
     this.isRead = false,
     this.category = 'general',
+    this.deepLink,
+    this.mediaUrl,
   });
 
   String get body => message;
@@ -1193,6 +1197,8 @@ class NotificationItem {
     String? status,
     bool? isRead,
     String? category,
+    String? deepLink,
+    String? mediaUrl,
   }) {
     return NotificationItem(
       id: id ?? this.id,
@@ -1210,6 +1216,35 @@ class NotificationItem {
       status: status ?? this.status,
       isRead: isRead ?? this.isRead,
       category: category ?? this.category,
+      deepLink: deepLink ?? this.deepLink,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+    );
+  }
+
+  factory NotificationItem.fromCampaign(NotificationCampaign campaign, {bool isRead = false}) {
+    final catLower = campaign.category.toLowerCase();
+    final titleEn = campaign.titleEnglish.isNotEmpty ? campaign.titleEnglish : campaign.title;
+    final titleTa = campaign.titleTamil.isNotEmpty ? campaign.titleTamil : titleEn;
+    final msgEn = campaign.messageEnglish.isNotEmpty ? campaign.messageEnglish : campaign.body;
+    final msgTa = campaign.messageTamil.isNotEmpty ? campaign.messageTamil : msgEn;
+
+    return NotificationItem(
+      id: campaign.id,
+      campaignId: campaign.id,
+      title: titleEn,
+      titleTa: titleTa,
+      message: msgEn,
+      messageTa: msgTa,
+      notificationType: catLower,
+      relatedItemType: catLower,
+      relatedItemId: campaign.deepLink,
+      sentAt: campaign.sentAt ?? campaign.createdAt,
+      openedAt: null,
+      status: campaign.status,
+      isRead: isRead,
+      category: catLower,
+      deepLink: campaign.deepLink,
+      mediaUrl: campaign.mediaReference,
     );
   }
 
@@ -1218,7 +1253,8 @@ class NotificationItem {
     final tTa = json['title_ta'] as String? ?? json['title_tamil'] as String? ?? tEn;
     final bEn = json['body'] as String? ?? json['message'] as String? ?? json['message_english'] as String? ?? '';
     final bTa = json['body_ta'] as String? ?? json['message_ta'] as String? ?? json['message_tamil'] as String? ?? bEn;
-    final type = json['notification_type'] as String? ?? json['category'] as String? ?? 'general';
+    final rawType = json['notification_type'] as String? ?? json['category'] as String? ?? 'general';
+    final type = rawType.toLowerCase();
 
     return NotificationItem(
       id: json['id'] as String,
@@ -1229,13 +1265,15 @@ class NotificationItem {
       message: bEn,
       messageTa: bTa,
       notificationType: type,
-      relatedItemType: json['related_item_type'] as String?,
+      relatedItemType: json['related_item_type'] as String? ?? type,
       relatedItemId: json['related_item_id'] as String?,
       sentAt: json['sent_at'] != null ? DateTime.parse(json['sent_at'] as String) : DateTime.now(),
       openedAt: json['opened_at'] != null ? DateTime.parse(json['opened_at'] as String) : null,
       status: json['status'] as String? ?? 'SENT',
       isRead: json['is_read'] as bool? ?? (json['opened_at'] != null),
-      category: json['category'] as String? ?? type,
+      category: (json['category'] as String? ?? type).toLowerCase(),
+      deepLink: json['deep_link'] as String?,
+      mediaUrl: json['media_reference'] as String? ?? json['media_url'] as String?,
     );
   }
 
@@ -1256,9 +1294,12 @@ class NotificationItem {
       'status': status,
       'is_read': isRead,
       'category': category,
+      if (deepLink != null) 'deep_link': deepLink,
+      if (mediaUrl != null) 'media_url': mediaUrl,
     };
   }
 }
+
 
 typedef NotificationLogItem = NotificationItem;
 

@@ -59,7 +59,7 @@ class AboutScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
                   'assets/images/tnt_logo.jpg',
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   width: 240,
                   height: 180,
                 ),

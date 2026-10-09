@@ -65,6 +65,9 @@ class SupabaseApiService implements ITNTApiService {
 
   @override
   Future<CalendarDay> getCalendarDay(DateTime date) async {
+    final cached = await CalendarRepository().fetchCalendarDay(date);
+    if (cached != null) return cached;
+
     if (!_db.isInitialized) throw TNTException('Supabase not initialized');
     final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     final res = await _db.client.from('calendar_days').select().eq('gregorian_date', dateStr).maybeSingle();
@@ -134,22 +137,44 @@ class SupabaseApiService implements ITNTApiService {
     
     return (res as List).map((e) {
       final t = (e['muhurtham_timings'] as List?) ?? [];
+      final firstTiming = t.isNotEmpty && t[0] is Map ? (t[0] as Map<String, dynamic>) : null;
+      final parsedDate = DateTime.parse(e['date']);
+      final tDate = PanchangRepository.computeTamilDate(parsedDate);
+      final rawTamilDateStr = e['tamil_date_str']?.toString() ?? '';
+      final tamilDateStr = rawTamilDateStr.trim().isNotEmpty
+          ? rawTamilDateStr
+          : '${tDate['tamilMonth']} ${tDate['tamilDay']}';
+
+      final sTime = (e['start_time'] != null && e['start_time'].toString().trim().isNotEmpty && e['start_time'] != '-')
+          ? e['start_time'].toString()
+          : (firstTiming?['start_time']?.toString() ?? '06:00 AM');
+      final eTime = (e['end_time'] != null && e['end_time'].toString().trim().isNotEmpty && e['end_time'] != '-')
+          ? e['end_time'].toString()
+          : (firstTiming?['end_time']?.toString() ?? '07:30 AM');
+
+      final desc = (e['description']?.toString().trim().isNotEmpty == true)
+          ? e['description'].toString()
+          : (e['suitable_purpose']?.toString().isNotEmpty == true ? e['suitable_purpose'].toString() : 'Marriage Muhurtham');
+      final descTa = (e['description_ta']?.toString().trim().isNotEmpty == true)
+          ? e['description_ta'].toString()
+          : (e['suitable_purpose_ta']?.toString().isNotEmpty == true ? e['suitable_purpose_ta'].toString() : 'சுப முகூர்த்தம்');
+
       return MuhurthamDate(
         id: e['id'],
-        date: DateTime.parse(e['date']),
-        tamilDateStr: e['tamil_date_str'] ?? '',
-        tamilMonth: e['tamil_month'] ?? '',
-        tamilYear: e['tamil_year'] ?? '',
+        date: parsedDate,
+        tamilDateStr: tamilDateStr,
+        tamilMonth: e['tamil_month'] ?? tDate['tamilMonth'] ?? '',
+        tamilYear: e['tamil_year'] ?? tDate['tamilYear'] ?? '',
         dayOfWeekEn: e['day_of_week_en'] ?? '',
         dayOfWeekTa: e['day_of_week_ta'] ?? '',
-        startTime: e['start_time'] ?? '',
-        endTime: e['end_time'] ?? '',
-        duration: e['duration'] ?? '',
+        startTime: sTime,
+        endTime: eTime,
+        duration: e['duration'] ?? '1h 30m',
         isValarthirai: e['is_valarthirai'] ?? false,
-        category: e['category'],
-        categoryTa: e['category_ta'] ?? '',
-        description: e['description'] ?? '',
-        descriptionTa: e['description_ta'] ?? '',
+        category: e['category'] ?? 'Marriage',
+        categoryTa: e['category_ta'] ?? 'திருமணம்',
+        description: desc,
+        descriptionTa: descTa,
         nakshatra: e['nakshatra'] ?? '',
         nakshatraTa: e['nakshatra_ta'] ?? '',
         nakshatraTime: e['nakshatra_time'] ?? '',
@@ -206,54 +231,12 @@ class SupabaseApiService implements ITNTApiService {
 
   @override
   Future<List<SpecialDay>> getSpecialDays(int year, int month, {String? category}) async {
-    if (!_db.isInitialized) throw TNTException('Supabase not initialized');
-    final startStr = '$year-${month.toString().padLeft(2, '0')}-01';
-    final endStr = month == 12 ? '${year+1}-01-01' : '$year-${(month+1).toString().padLeft(2, '0')}-01';
-    
-    var query = _db.client.from('special_days').select().gte('date', startStr).lt('date', endStr);
-    if (category != null) {
-      query = query.eq('category', category);
-    }
-    
-    final res = await query.order('date', ascending: true);
-    
-        return (res as List).map((e) => SpecialDay(
-      id: e['id'],
-      date: DateTime.parse(e['date']),
-      title: e['title'] ?? e['name'] ?? '',
-      titleTa: e['title_ta'] ?? e['title'] ?? e['name_ta'] ?? e['name'] ?? '',
-      category: e['category'] ?? '',
-      categoryTa: e['category_ta'] ?? e['category'] ?? '',
-      isHoliday: false,
-      description: e['description'] ?? e['significance'] ?? '',
-      descriptionTa: e['description_ta'] ?? e['description'] ?? e['significance_ta'] ?? '',
-    )).toList();
+    return SpecialDaysRepository().fetchSpecialDays(year, month, category: category);
   }
 
   @override
   Future<List<Festival>> getFestivals(int year, int month, {String? category}) async {
-    if (!_db.isInitialized) throw TNTException('Supabase not initialized');
-    final startStr = '$year-${month.toString().padLeft(2, '0')}-01';
-    final endStr = month == 12 ? '${year+1}-01-01' : '$year-${(month+1).toString().padLeft(2, '0')}-01';
-    
-    var query = _db.client.from('festivals').select().gte('date', startStr).lt('date', endStr);
-    if (category != null) {
-      query = query.eq('category', category);
-    }
-    
-    final res = await query.order('date', ascending: true);
-    
-        return (res as List).map((e) => Festival(
-      id: e['id'],
-      date: DateTime.parse(e['date']),
-      name: e['name'] ?? e['title'] ?? '',
-      nameTa: e['name_ta'] ?? e['title_ta'] ?? e['name'] ?? e['title'] ?? '',
-      type: e['category'] ?? 'hindu',
-      description: e['description'] ?? '',
-      descriptionTa: e['description_ta'] ?? '',
-      category: e['category'] ?? '',
-      categoryTa: e['category_ta'] ?? e['category'] ?? '',
-    )).toList();
+    return FestivalRepository().fetchFestivals(year, month, category: category);
   }
 
   @override

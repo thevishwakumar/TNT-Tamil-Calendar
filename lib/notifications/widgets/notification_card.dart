@@ -219,7 +219,8 @@ class NotificationCard extends StatelessWidget {
                               ),
                             ],
                           ),
-                          if (item.relatedItemType != null && item.relatedItemId != null) ...[
+                          if ((item.relatedItemType != null && item.relatedItemId != null) ||
+                              (item.deepLink != null && item.deepLink!.isNotEmpty)) ...[
                             Row(
                               children: [
                                 Text(

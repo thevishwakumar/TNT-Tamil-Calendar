@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tnt_models.dart';
 import 'supabase_service.dart';
 import 'device_service.dart';
+import '../features/admin/notifications/repositories/admin_campaign_repository.dart';
+import 'push_notification_service.dart';
 
 /// Notification Permission Status Enum
 enum NotificationPermissionStatus { notDetermined, granted, denied }
@@ -11,6 +15,7 @@ enum NotificationPermissionStatus { notDetermined, granted, denied }
 /// - Permission request onboarding & status
 /// - User Notification Preferences (including strict opt-in marketing)
 /// - Device Push Token registration via DeviceService
+/// - Broadcast Campaigns (notification_campaigns) from Admin Dashboard
 /// - Notification History (notification_logs) & Mark as Read / Mark All as Read
 /// - Deep Linking to approved public content
 /// - Integration with Reminders, Festivals, Special Days, Muhurtham, and Panchangam
@@ -22,7 +27,8 @@ class NotificationService extends ChangeNotifier {
   final SupabaseService _db = SupabaseService();
   final DeviceService _deviceService = DeviceService();
 
-  NotificationPermissionStatus _permissionStatus = NotificationPermissionStatus.notDetermined;
+  NotificationPermissionStatus _permissionStatus =
+      NotificationPermissionStatus.notDetermined;
   NotificationPreferences _preferences = const NotificationPreferences();
   final List<NotificationItem> _notifications = [];
   bool _isLoading = false;
@@ -33,40 +39,160 @@ class NotificationService extends ChangeNotifier {
   List<NotificationItem> get notifications => List.unmodifiable(_notifications);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  DeviceService get deviceService => _deviceService;
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
-  /// Initialize notification service with seed logs
+  /// Add incoming foreground push notification to in-memory list
+  void addPushNotification(NotificationItem item) {
+    if (!_notifications.any((n) => n.id == item.id)) {
+      _notifications.insert(0, item);
+      notifyListeners();
+    }
+  }
+
+  /// Initialize notification service
   Future<void> init() async {
     await fetchPreferences();
     await fetchNotifications();
   }
 
-  /// Fetch notifications from real Supabase table
+  /// Whether a notification category is allowed based on user preferences
+  bool _isCategoryAllowed(String type) {
+    if (!_preferences.allNotifications) return false;
+    final t = type.toLowerCase();
+    switch (t) {
+      case 'marketing':
+        return _preferences.marketingNotifications; // Strict opt-in
+      case 'festival':
+        return _preferences.festivalNotifications;
+      case 'muhurtham':
+        return _preferences.muhurthamNotifications;
+      case 'special_day':
+        return _preferences.specialDayNotifications;
+      case 'panchangam':
+        return _preferences.panchangamNotifications;
+      case 'reminder':
+        return _preferences.reminderNotifications;
+      case 'important_update':
+      case 'announcement':
+        return _preferences.importantUpdates;
+      default:
+        return true;
+    }
+  }
+
+  /// Fetch notifications from both Supabase (broadcast campaigns & personal logs) and local repositories
   Future<void> fetchNotifications() async {
-    if (!_db.isInitialized) return;
     _isLoading = true;
     notifyListeners();
 
     try {
-      final user = _db.client.auth.currentUser;
-      if (user == null) {
-        _isLoading = false;
-        notifyListeners();
-        return;
+      final prefs = await SharedPreferences.getInstance();
+      final readIds =
+          (prefs.getStringList('tnt_read_notifications') ?? []).toSet();
+
+      final List<NotificationItem> loadedItems = [];
+
+      // 1. Fetch broadcast notification campaigns sent from Admin Dashboard (Supabase)
+      if (_db.isInitialized) {
+        try {
+          final res = await _db.client
+              .from('notification_campaigns')
+              .select('*')
+              .eq('status', 'SENT')
+              .order('sent_at', ascending: false)
+              .limit(50);
+
+          for (final item in res) {
+            try {
+              final notif = NotificationItem.fromJson(item);
+              final isRead = readIds.contains(notif.id) ||
+                  (notif.campaignId != null &&
+                      readIds.contains(notif.campaignId));
+              if (_isCategoryAllowed(notif.notificationType)) {
+                loadedItems.add(notif.copyWith(isRead: isRead));
+              }
+            } catch (e) {
+              debugPrint('Campaign parse error: $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('Supabase notification_campaigns fetch error: $e');
+        }
       }
 
-      final res = await _db.client
-          .from('notification_logs')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('sent_at', ascending: false)
-          .limit(50);
+      // 2. Fetch sent campaigns from AdminCampaignRepository (for offline / session-created campaigns)
+      try {
+        final adminRepo = AdminCampaignRepository();
+        final localSent = await adminRepo.getCampaigns(status: 'SENT');
+        for (final camp in localSent) {
+          if (!loadedItems
+              .any((n) => n.id == camp.id || n.campaignId == camp.id)) {
+            if (_isCategoryAllowed(camp.category.toLowerCase())) {
+              final isRead = readIds.contains(camp.id);
+              loadedItems
+                  .add(NotificationItem.fromCampaign(camp, isRead: isRead));
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Admin campaigns fetch error: $e');
+      }
+
+      // 3. Fetch user-specific notification logs from Supabase if authenticated
+      if (_db.isInitialized) {
+        try {
+          final user = _db.client.auth.currentUser;
+          if (user != null) {
+            final res = await _db.client
+                .from('notification_logs')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('sent_at', ascending: false)
+                .limit(50);
+
+            for (final item in res) {
+              try {
+                final notif = NotificationItem.fromJson(item);
+                final isRead = notif.isRead || readIds.contains(notif.id);
+                if (_isCategoryAllowed(notif.notificationType)) {
+                  if (!loadedItems.any((n) => n.id == notif.id)) {
+                    loadedItems.add(notif.copyWith(isRead: isRead));
+                  }
+                }
+              } catch (e) {
+                debugPrint('Notification log parse error: $e');
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Supabase notification_logs fetch error: $e');
+        }
+      }
+
+      // 4. Fallback local delivery logs from AdminCampaignRepository
+      try {
+        final adminRepo = AdminCampaignRepository();
+        for (final log in adminRepo.localDeliveryLogs) {
+          final logId = log['id'] as String;
+          if (!loadedItems.any((n) => n.id == logId)) {
+            final notif = NotificationItem.fromJson(log);
+            if (_isCategoryAllowed(notif.notificationType)) {
+              final isRead = readIds.contains(logId) || notif.isRead;
+              loadedItems.add(notif.copyWith(isRead: isRead));
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Local delivery logs fetch error: $e');
+      }
+
+      // 5. Sort by sentAt descending
+      loadedItems.sort((a, b) => b.sentAt.compareTo(a.sentAt));
 
       _notifications.clear();
-      for (final item in (res as List)) {
-        _notifications.add(NotificationItem.fromJson(item));
-      }
+      _notifications.addAll(loadedItems);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -76,25 +202,43 @@ class NotificationService extends ChangeNotifier {
     }
   }
 
+  /// Dynamically add or update campaign notification (invoked immediately when admin dispatches)
+  void addCampaignNotification(NotificationCampaign campaign) {
+    if (campaign.status.toUpperCase() != 'SENT') return;
+    if (!_isCategoryAllowed(campaign.category)) return;
+
+    final notif = NotificationItem.fromCampaign(campaign, isRead: false);
+    final idx = _notifications
+        .indexWhere((n) => n.id == notif.id || n.campaignId == notif.id);
+    if (idx != -1) {
+      _notifications[idx] = notif;
+    } else {
+      _notifications.insert(0, notif);
+    }
+    notifyListeners();
+  }
+
   /// Request notification permission with clear rationale
   Future<bool> requestPermission() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Simulate platform permission grant
-      _permissionStatus = NotificationPermissionStatus.granted;
-      
-      // Register device token upon granting permission
-      await _deviceService.registerDeviceToken();
+      final granted = await PushNotificationService()
+          .requestNotificationPermission(forcePrompt: true);
+      _permissionStatus = granted
+          ? NotificationPermissionStatus.granted
+          : NotificationPermissionStatus.denied;
 
-      // Ensure allNotifications is enabled
-      _preferences = _preferences.copyWith(allNotifications: true);
-      await savePreferences(_preferences);
+      if (granted) {
+        // Ensure allNotifications is enabled
+        _preferences = _preferences.copyWith(allNotifications: true);
+        await savePreferences(_preferences);
+      }
 
       _isLoading = false;
       notifyListeners();
-      return true;
+      return granted;
     } catch (e) {
       _permissionStatus = NotificationPermissionStatus.denied;
       _isLoading = false;
@@ -111,6 +255,16 @@ class NotificationService extends ChangeNotifier {
 
   /// Fetch user notification preferences from Supabase or local cache
   Future<void> fetchPreferences() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final savedStr = sp.getString('tnt_notification_prefs');
+      if (savedStr != null) {
+        final data = jsonDecode(savedStr) as Map<String, dynamic>;
+        _preferences = NotificationPreferences.fromJson(data);
+        notifyListeners();
+      }
+    } catch (_) {}
+
     try {
       if (_db.isInitialized) {
         final user = _db.client.auth.currentUser;
@@ -137,6 +291,11 @@ class NotificationService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString('tnt_notification_prefs', jsonEncode(prefs.toJson()));
+    } catch (_) {}
+
+    try {
       if (_db.isInitialized) {
         final user = _db.client.auth.currentUser;
         if (user != null) {
@@ -148,7 +307,7 @@ class NotificationService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Supabase preferences update error: $e');
+      debugPrint('Supabase preferences update error: $e');
     }
   }
 
@@ -197,6 +356,14 @@ class NotificationService extends ChangeNotifier {
       );
       notifyListeners();
 
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final readIds =
+            (prefs.getStringList('tnt_read_notifications') ?? []).toSet();
+        readIds.add(notificationId);
+        await prefs.setStringList('tnt_read_notifications', readIds.toList());
+      } catch (_) {}
+
       if (_db.isInitialized) {
         try {
           await _db.client.rpc('mark_notification_as_read', params: {
@@ -210,7 +377,9 @@ class NotificationService extends ChangeNotifier {
   /// Mark all notifications as read
   Future<void> markAllAsRead() async {
     final now = DateTime.now();
+    final List<String> allIds = [];
     for (int i = 0; i < _notifications.length; i++) {
+      allIds.add(_notifications[i].id);
       if (!_notifications[i].isRead) {
         _notifications[i] = _notifications[i].copyWith(
           isRead: true,
@@ -220,6 +389,14 @@ class NotificationService extends ChangeNotifier {
       }
     }
     notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readIds =
+          (prefs.getStringList('tnt_read_notifications') ?? []).toSet();
+      readIds.addAll(allIds);
+      await prefs.setStringList('tnt_read_notifications', readIds.toList());
+    } catch (_) {}
 
     if (_db.isInitialized) {
       try {
@@ -238,17 +415,7 @@ class NotificationService extends ChangeNotifier {
     String? relatedItemType,
     String? relatedItemId,
   }) async {
-    // Check if user preferences allow this notification
-    if (!_preferences.allNotifications) return;
-
-    if (notificationType == 'marketing' && !_preferences.marketingNotifications) {
-      return; // Respect strict opt-in rule
-    }
-    if (notificationType == 'festival' && !_preferences.festivalNotifications) return;
-    if (notificationType == 'muhurtham' && !_preferences.muhurthamNotifications) return;
-    if (notificationType == 'special_day' && !_preferences.specialDayNotifications) return;
-    if (notificationType == 'panchangam' && !_preferences.panchangamNotifications) return;
-    if (notificationType == 'reminder' && !_preferences.reminderNotifications) return;
+    if (!_isCategoryAllowed(notificationType)) return;
 
     final newNotif = NotificationItem(
       id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
@@ -266,6 +433,14 @@ class NotificationService extends ChangeNotifier {
     );
 
     _notifications.insert(0, newNotif);
+    notifyListeners();
+  }
+
+  /// Clear session state upon user sign out to guarantee zero cross-user data leakage
+  void clearSession() {
+    _notifications.clear();
+    _preferences = const NotificationPreferences();
+    _errorMessage = null;
     notifyListeners();
   }
 }

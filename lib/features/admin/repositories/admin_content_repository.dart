@@ -221,6 +221,7 @@ class AdminContentRepository {
           ? await _db.client.from('festivals').update(payload).eq('id', festival.id).select().single()
           : await _db.client.from('festivals').insert(payload).select().single();
       final saved = Festival.fromJson(res);
+      FestivalRepository.invalidateCache();
       await logAudit(action: isUuid ? 'UPDATE' : 'CREATE', module: 'FESTIVALS', recordId: saved.id, newState: saved.toJson());
       return saved;
     }
@@ -277,6 +278,7 @@ class AdminContentRepository {
           ? await _db.client.from('special_days').update(payload).eq('id', sp.id).select().single()
           : await _db.client.from('special_days').insert(payload).select().single();
       final saved = SpecialDay.fromJson(res);
+      SpecialDaysRepository.invalidateCache();
       await logAudit(action: isUuid ? 'UPDATE' : 'CREATE', module: 'SPECIAL_DAYS', recordId: saved.id, newState: saved.toJson());
       return saved;
     }
@@ -483,6 +485,7 @@ class AdminContentRepository {
         }
       }
       await logAudit(action: 'DELETE', module: 'SPECIAL_DAYS', recordId: id.isNotEmpty ? id : (specialDay?.title ?? 'unknown'));
+      SpecialDaysRepository.invalidateCache();
       return true;
     }
     return true;
@@ -508,6 +511,7 @@ class AdminContentRepository {
         }
       }
       await logAudit(action: 'DELETE', module: 'FESTIVALS', recordId: id.isNotEmpty ? id : (festival?.name ?? 'unknown'));
+      FestivalRepository.invalidateCache();
       return true;
     }
     return true;

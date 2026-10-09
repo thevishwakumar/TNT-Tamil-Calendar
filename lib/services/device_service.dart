@@ -53,7 +53,9 @@ class DeviceService extends ChangeNotifier {
     try {
       // In production mobile: token comes from FirebaseMessaging.instance.getToken()
       // In dev / web preview: robust unique device token generated per session
-      final activeToken = token ?? _currentToken ?? 'fcm_tnt_${currentPlatform}_${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+      final activeToken = token ??
+          _currentToken ??
+          'fcm_tnt_${currentPlatform}_${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
       _currentToken = activeToken;
 
       final now = DateTime.now();
@@ -63,11 +65,12 @@ class DeviceService extends ChangeNotifier {
         deviceToken: activeToken,
         platform: currentPlatform,
         appVersion: appVersion,
-        deviceInfo: deviceInfo ?? {
-          'platform': currentPlatform,
-          'registered_at': now.toIso8601String(),
-          'model': kIsWeb ? 'Web Browser' : 'Mobile Device',
-        },
+        deviceInfo: deviceInfo ??
+            {
+              'platform': currentPlatform,
+              'registered_at': now.toIso8601String(),
+              'model': kIsWeb ? 'Web Browser' : 'Mobile Device',
+            },
         isActive: true,
         lastSeenAt: now,
         createdAt: now,
@@ -79,16 +82,16 @@ class DeviceService extends ChangeNotifier {
         try {
           final user = _db.client.auth.currentUser;
           if (user != null) {
-            final response = await _db.client.rpc('register_device_token', params: {
+            await _db.client.rpc('register_device_token', params: {
               'p_device_token': activeToken,
               'p_platform': currentPlatform,
               'p_app_version': appVersion,
               'p_device_info': device.deviceInfo,
             });
-            print('Device token registered in Supabase: $response');
+            debugPrint('Device token registered in Supabase');
           }
         } catch (dbErr) {
-          print('Supabase device registration fallback to local state: $dbErr');
+          debugPrint('Supabase device registration fallback: $dbErr');
         }
       }
 
@@ -139,10 +142,10 @@ class DeviceService extends ChangeNotifier {
   Future<void> markTokenInvalid(String invalidToken) async {
     try {
       if (_db.isInitialized) {
-        await _db.client
-            .from('user_devices')
-            .update({'is_active': false, 'updated_at': DateTime.now().toIso8601String()})
-            .eq('device_token', invalidToken);
+        await _db.client.from('user_devices').update({
+          'is_active': false,
+          'updated_at': DateTime.now().toIso8601String()
+        }).eq('device_token', invalidToken);
       }
     } catch (_) {}
 

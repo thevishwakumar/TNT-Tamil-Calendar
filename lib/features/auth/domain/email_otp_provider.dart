@@ -35,15 +35,16 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
       );
       return true;
     } catch (e) {
+      print('Resend signup OTP error (trying signInWithOtp fallback): $e');
       // 2. If resend signup fails, fallback to signInWithOtp
       try {
         await client.auth.signInWithOtp(
           email: cleanEmail,
-          shouldCreateUser: false,
+          shouldCreateUser: true,
         );
         return true;
       } catch (e2) {
-        print('Error sending OTP: $e2');
+        print('Error sending OTP via signInWithOtp fallback: $e2');
         return false;
       }
     }
@@ -53,7 +54,12 @@ class SupabaseEdgeFunctionEmailOtpProvider implements EmailOtpProvider {
   Future<bool> verifyOtp(String email, String otp) async {
     final client = _client ?? SupabaseService().client;
     final cleanEmail = email.trim().toLowerCase();
-    final cleanOtp = otp.trim();
+    final cleanOtp = otp.replaceAll(RegExp(r'\D'), '').trim();
+
+    if (cleanOtp.length != 6) {
+      print('Invalid OTP length: ${cleanOtp.length} (expected 6 digits)');
+      return false;
+    }
 
     // 1. Try OtpType.signup first (for new signup confirmation)
     try {

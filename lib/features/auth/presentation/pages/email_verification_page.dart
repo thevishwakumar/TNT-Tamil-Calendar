@@ -111,6 +111,34 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
 
+  Future<void> _handlePasteClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim() ?? '';
+      final digits = text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length >= 6) {
+        final code = digits.substring(0, 6);
+        for (int i = 0; i < 6; i++) {
+          _otpControllers[i].text = code[i];
+        }
+        if (mounted) {
+          _focusNodes[5].unfocus();
+          _handleVerify();
+        }
+      } else if (mounted) {
+        final isTa = Localizations.localeOf(context).languageCode == 'ta';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isTa
+                ? 'நகலெடுக்கப்பட்ட 6-இலக்க OTP குறியீடு காணப்படவில்லை'
+                : 'No 6-digit OTP code found in clipboard'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
   void _handleResend() async {
     if (_cooldownSeconds > 0 || _isResending) return;
 
@@ -307,7 +335,29 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                   );
                 }),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+
+              // Quick Paste Helper
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _handlePasteClipboard,
+                  icon: const Icon(Icons.content_paste_rounded, size: 14, color: TNTColors.primary),
+                  label: Text(
+                    isTamil ? 'OTP குறியீட்டை ஒட்டுக' : 'Paste Code',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: TNTColors.primary,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
 
               // Error banner if any
               if (_error != null) ...[

@@ -6,6 +6,9 @@ import '../features/auth/domain/email_otp_provider.dart';
 import 'supabase_service.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/authorization/admin_authorization_service.dart';
+import 'notification_service.dart';
+import 'push_notification_service.dart';
 
 enum AppAuthState {
   loading,
@@ -23,7 +26,8 @@ class AuthStateManager extends ChangeNotifier {
   final ProfileRepository _profileRepo = ProfileRepository();
   final UserPreferencesRepository _prefRepo = UserPreferencesRepository();
   final SmsOtpProvider _smsOtpProvider = SupabaseEdgeFunctionSmsOtpProvider();
-  final EmailOtpProvider _emailOtpProvider = SupabaseEdgeFunctionEmailOtpProvider();
+  final EmailOtpProvider _emailOtpProvider =
+      SupabaseEdgeFunctionEmailOtpProvider();
 
   AppAuthState _state = AppAuthState.loading;
   UserProfile? _currentProfile;
@@ -35,16 +39,20 @@ class AuthStateManager extends ChangeNotifier {
   void retry() {
     _initializeAuth();
   }
+
   UserProfile? get currentProfile => _currentProfile;
   UserPreferences? get currentPreferences => _currentPreferences;
   String? get errorMessage => _errorMessage;
   String? get currentEmail =>
       _currentProfile?.email ??
-      (SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser?.email : null);
+      (SupabaseService().isInitialized
+          ? SupabaseService().client.auth.currentUser?.email
+          : null);
 
   bool get isLoading => _state == AppAuthState.loading;
   bool get isAuthenticated =>
-      _state == AppAuthState.authenticatedUser || _state == AppAuthState.authenticatedAdmin;
+      _state == AppAuthState.authenticatedUser ||
+      _state == AppAuthState.authenticatedAdmin;
   bool get isAdmin => _state == AppAuthState.authenticatedAdmin;
 
   AuthStateManager() {
@@ -63,26 +71,32 @@ class AuthStateManager extends ChangeNotifier {
     try {
       await SupabaseService().init();
       print('[STARTUP] Supabase initialization completed');
-      
-      _authSubscription = SupabaseService().client.auth.onAuthStateChange.listen((data) {
+
+      _authSubscription =
+          SupabaseService().client.auth.onAuthStateChange.listen((data) {
         final AuthChangeEvent event = data.event;
         final Session? session = data.session;
-        print('TNT Auth Event: ${event.name} | Session exists: ${session != null}');
-        
+        print(
+            'TNT Auth Event: ${event.name} | Session exists: ${session != null}');
+
         if (event == AuthChangeEvent.signedIn && session != null) {
           final user = session.user;
           print('TNT Auth: SIGNED_IN for user ${user.id}');
-          // Only load if not already loaded or profile id differs
-          if (_currentProfile?.id != user.id) {
+          // Load if not loaded, profile id differs, or transitioning from pending email verification
+          if (_currentProfile?.id != user.id ||
+              _state == AppAuthState.pendingEmailVerification) {
             loadUserSession(user.id, user.email ?? '');
           } else {
-            print('TNT Auth: Profile already loaded for this user. Skipping loadUserSession.');
+            print(
+                'TNT Auth: Profile already loaded for this user. Skipping loadUserSession.');
           }
         } else if (event == AuthChangeEvent.signedOut) {
           print('TNT Auth: SIGNED_OUT event received');
           _state = AppAuthState.unauthenticated;
           _currentProfile = null;
           _currentPreferences = null;
+          AdminAuthorizationService().clearSession();
+          NotificationService().clearSession();
           notifyListeners();
         }
       });
@@ -118,13 +132,17 @@ class AuthStateManager extends ChangeNotifier {
   /// Load user profile and evaluate verification stages (Email -> Mobile -> Active)
   Future<void> loadUserSession(String userId, String email) async {
     print('TNT Auth: Starting loadUserSession for $userId');
-    
+
     // FAST STARTUP: Optimistically unblock UI before network calls
-    final authUser = SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser : null;
+    final authUser = SupabaseService().isInitialized
+        ? SupabaseService().client.auth.currentUser
+        : null;
     final isEmailConfirmed = authUser?.emailConfirmedAt != null;
-    
+
     if (_state == AppAuthState.loading) {
-      _state = isEmailConfirmed ? AppAuthState.authenticatedUser : AppAuthState.pendingEmailVerification;
+      _state = isEmailConfirmed
+          ? AppAuthState.authenticatedUser
+          : AppAuthState.pendingEmailVerification;
       notifyListeners();
     }
 
@@ -137,23 +155,27 @@ class AuthStateManager extends ChangeNotifier {
       });
       print('[STARTUP] Auth restoration completed (Profile loaded)');
       print('[STARTUP] Initial navigation started');
-      
+
       var profile = results[0] as UserProfile?;
       var prefs = results[1] as UserPreferences?;
-      
+
       print('TNT Auth: fetchUserProfile returned: ${profile != null}');
 
-      final authUser = SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser : null;
+      final authUser = SupabaseService().isInitialized
+          ? SupabaseService().client.auth.currentUser
+          : null;
       final isEmailConfirmed = authUser?.emailConfirmedAt != null;
 
       if (profile == null) {
         profile = UserProfile(
           id: userId,
           email: email,
-          fullName: authUser?.userMetadata?['full_name'] as String? ?? email.split('@')[0],
+          fullName: authUser?.userMetadata?['full_name'] as String? ??
+              email.split('@')[0],
           phoneNumber: authUser?.userMetadata?['phone'] as String?,
           role: 'user', // strictly default USER role
-          accountStatus: isEmailConfirmed ? 'ACTIVE' : 'PENDING_EMAIL_VERIFICATION',
+          accountStatus:
+              isEmailConfirmed ? 'ACTIVE' : 'PENDING_EMAIL_VERIFICATION',
           emailVerifiedAt: isEmailConfirmed ? DateTime.now() : null,
           createdAt: DateTime.now(),
         );
@@ -176,12 +198,17 @@ class AuthStateManager extends ChangeNotifier {
       } else if (profile.isAdmin) {
         // Admins bypass normal public OTP verification
         _state = AppAuthState.authenticatedAdmin;
-      } else if (!isEmailConfirmed && profile.accountStatus == 'PENDING_EMAIL_VERIFICATION') {
+      } else if (!isEmailConfirmed &&
+          profile.accountStatus == 'PENDING_EMAIL_VERIFICATION') {
         _state = AppAuthState.pendingEmailVerification;
       } else if (profile.accountStatus == 'PENDING_MOBILE_VERIFICATION') {
         _state = AppAuthState.pendingMobileVerification;
       } else {
         _state = AppAuthState.authenticatedUser;
+      }
+      if (_state == AppAuthState.authenticatedUser ||
+          _state == AppAuthState.authenticatedAdmin) {
+        PushNotificationService().syncTokenWithBackend();
       }
       print('TNT Auth: loadUserSession success. Final state: $_state');
 
@@ -206,18 +233,19 @@ class AuthStateManager extends ChangeNotifier {
         print('TNT Auth: Calling _authRepo.signInWithGoogle()');
         await _authRepo.signInWithGoogle();
         print('TNT Auth: signInWithOAuth returned true (launched browser)');
-        // Do not check currentUser here immediately. 
-        // The browser is opened and the flow is asynchronous. 
+        // Do not check currentUser here immediately.
+        // The browser is opened and the flow is asynchronous.
         // We will rely on the onAuthStateChange listener to update the state once signed in.
         // We also clear the loading state so the user isn't stuck if they cancel.
         _state = AppAuthState.unauthenticated;
         notifyListeners();
         return;
       }
-
-      } catch (e) {
+    } catch (e) {
       final errorStr = e.toString();
-      if (errorStr.contains('SocketException') || errorStr.contains('host lookup') || errorStr.contains('ClientException')) {
+      if (errorStr.contains('SocketException') ||
+          errorStr.contains('host lookup') ||
+          errorStr.contains('ClientException')) {
         _errorMessage = 'connection_error';
       } else {
         _errorMessage = errorStr;
@@ -237,7 +265,8 @@ class AuthStateManager extends ChangeNotifier {
     required bool termsAccepted,
   }) async {
     if (!termsAccepted) {
-      throw Exception('You must accept the Terms of Service and Privacy Policy to create an account.');
+      throw Exception(
+          'You must accept the Terms of Service and Privacy Policy to create an account.');
     }
 
     _state = AppAuthState.loading;
@@ -272,7 +301,7 @@ class AuthStateManager extends ChangeNotifier {
       }
 
       throw Exception('Supabase initialization failed or network error');
-      } catch (e) {
+    } catch (e) {
       _errorMessage = e.toString();
       _state = AppAuthState.unauthenticated;
       notifyListeners();
@@ -296,7 +325,9 @@ class AuthStateManager extends ChangeNotifier {
     if (!isOtpValid) return false;
 
     try {
-      final currentUser = SupabaseService().isInitialized ? SupabaseService().client.auth.currentUser : null;
+      final currentUser = SupabaseService().isInitialized
+          ? SupabaseService().client.auth.currentUser
+          : null;
       final userId = _currentProfile?.id ?? currentUser?.id;
       if (userId == null) return false;
 
@@ -319,7 +350,8 @@ class AuthStateManager extends ChangeNotifier {
           activeProfile = UserProfile(
             id: userId,
             email: email,
-            fullName: currentUser?.userMetadata?['full_name'] as String? ?? email.split('@')[0],
+            fullName: currentUser?.userMetadata?['full_name'] as String? ??
+                email.split('@')[0],
             phoneNumber: currentUser?.userMetadata?['phone'] as String?,
             role: 'user',
             accountStatus: 'ACTIVE',
@@ -335,17 +367,20 @@ class AuthStateManager extends ChangeNotifier {
       _currentProfile = activeProfile;
 
       // Ensure default user preferences
-      _currentPreferences = await _prefRepo.fetchUserPreferences(activeProfile.id) ??
-          UserPreferences(
-            userId: activeProfile.id,
-            language: 'ta',
-            location: 'Chennai',
-            notificationsEnabled: true,
-          );
+      _currentPreferences =
+          await _prefRepo.fetchUserPreferences(activeProfile.id) ??
+              UserPreferences(
+                userId: activeProfile.id,
+                language: 'ta',
+                location: 'Chennai',
+                notificationsEnabled: true,
+              );
       await _prefRepo.savePreferences(_currentPreferences!);
 
       final isSystemAdmin = activeProfile.isAdmin;
-      _state = isSystemAdmin ? AppAuthState.authenticatedAdmin : AppAuthState.authenticatedUser;
+      _state = isSystemAdmin
+          ? AppAuthState.authenticatedAdmin
+          : AppAuthState.authenticatedUser;
       _errorMessage = null;
       notifyListeners();
       return true;
@@ -370,7 +405,8 @@ class AuthStateManager extends ChangeNotifier {
                   UserProfile(
                     id: user!.id,
                     email: email,
-                    fullName: user.userMetadata?['full_name'] as String? ?? email.split('@')[0],
+                    fullName: user.userMetadata?['full_name'] as String? ??
+                        email.split('@')[0],
                     role: 'user',
                     accountStatus: 'ACTIVE',
                     createdAt: DateTime.now(),
@@ -386,16 +422,19 @@ class AuthStateManager extends ChangeNotifier {
           }
           _currentProfile = updated;
 
-          _currentPreferences = await _prefRepo.fetchUserPreferences(updated.id) ??
-              UserPreferences(
-                userId: updated.id,
-                language: 'ta',
-                location: 'Chennai',
-                notificationsEnabled: true,
-              );
+          _currentPreferences =
+              await _prefRepo.fetchUserPreferences(updated.id) ??
+                  UserPreferences(
+                    userId: updated.id,
+                    language: 'ta',
+                    location: 'Chennai',
+                    notificationsEnabled: true,
+                  );
           await _prefRepo.savePreferences(_currentPreferences!);
 
-          _state = updated.isAdmin ? AppAuthState.authenticatedAdmin : AppAuthState.authenticatedUser;
+          _state = updated.isAdmin
+              ? AppAuthState.authenticatedAdmin
+              : AppAuthState.authenticatedUser;
           notifyListeners();
           return true;
         }
@@ -423,9 +462,11 @@ class AuthStateManager extends ChangeNotifier {
 
   /// Verify 6-digit Mobile OTP and activate account
   Future<bool> verifyMobileOtp(String otp) async {
-    if (_currentProfile == null || _currentProfile!.phoneNumber == null) return false;
+    if (_currentProfile == null || _currentProfile!.phoneNumber == null)
+      return false;
 
-    final isOtpValid = await _smsOtpProvider.verifyOtp(_currentProfile!.phoneNumber!, otp);
+    final isOtpValid =
+        await _smsOtpProvider.verifyOtp(_currentProfile!.phoneNumber!, otp);
     if (!isOtpValid) return false;
 
     try {
@@ -439,18 +480,21 @@ class AuthStateManager extends ChangeNotifier {
       _currentProfile = activeProfile;
 
       // Ensure default user preferences with marketing OFF
-      _currentPreferences = await _prefRepo.fetchUserPreferences(activeProfile.id) ??
-          UserPreferences(
-            userId: activeProfile.id,
-            language: 'ta',
-            location: 'Chennai',
-            notificationsEnabled: true,
-            // marketingNotifications: false,
-          );
+      _currentPreferences =
+          await _prefRepo.fetchUserPreferences(activeProfile.id) ??
+              UserPreferences(
+                userId: activeProfile.id,
+                language: 'ta',
+                location: 'Chennai',
+                notificationsEnabled: true,
+                // marketingNotifications: false,
+              );
       await _prefRepo.savePreferences(_currentPreferences!);
 
       final isSystemAdmin = activeProfile.isAdmin;
-      _state = isSystemAdmin ? AppAuthState.authenticatedAdmin : AppAuthState.authenticatedUser;
+      _state = isSystemAdmin
+          ? AppAuthState.authenticatedAdmin
+          : AppAuthState.authenticatedUser;
       _errorMessage = null;
       notifyListeners();
       return true;
@@ -464,7 +508,8 @@ class AuthStateManager extends ChangeNotifier {
   /// Update Mobile Number during verification
   Future<void> updateMobileNumber(String newPhone) async {
     if (_currentProfile == null) return;
-    final updated = _currentProfile!.copyWith(phoneNumber: newPhone, updatedAt: DateTime.now());
+    final updated = _currentProfile!
+        .copyWith(phoneNumber: newPhone, updatedAt: DateTime.now());
     await _profileRepo.upsertUserProfile(updated);
     _currentProfile = updated;
     notifyListeners();
@@ -487,9 +532,11 @@ class AuthStateManager extends ChangeNotifier {
       }
 
       throw Exception('Invalid credentials or network error');
-      } catch (e) {
+    } catch (e) {
       final errorStr = e.toString();
-      if (errorStr.contains('SocketException') || errorStr.contains('host lookup') || errorStr.contains('ClientException')) {
+      if (errorStr.contains('SocketException') ||
+          errorStr.contains('host lookup') ||
+          errorStr.contains('ClientException')) {
         _errorMessage = 'connection_error';
       } else {
         _errorMessage = errorStr;
@@ -512,19 +559,20 @@ class AuthStateManager extends ChangeNotifier {
   }
 
   /// Verify OTP and reset password
-  Future<void> verifyOtpAndResetPassword(String email, String otp, String newPassword) async {
+  Future<void> verifyOtpAndResetPassword(
+      String email, String otp, String newPassword) async {
     try {
       if (SupabaseService().isInitialized) {
         final res = await SupabaseService().client.auth.verifyOTP(
-          email: email,
-          token: otp,
-          type: OtpType.recovery,
-        );
-        
+              email: email,
+              token: otp,
+              type: OtpType.recovery,
+            );
+
         if (res.user != null) {
           await SupabaseService().client.auth.updateUser(
-            UserAttributes(password: newPassword),
-          );
+                UserAttributes(password: newPassword),
+              );
         } else {
           throw Exception("Invalid OTP");
         }
@@ -543,7 +591,8 @@ class AuthStateManager extends ChangeNotifier {
   }
 
   /// Update Profile Fields safely
-  Future<void> updateProfile({required String fullName, String? mobile, String? city}) async {
+  Future<void> updateProfile(
+      {required String fullName, String? mobile, String? city}) async {
     if (_currentProfile == null) return;
     try {
       final updated = await _profileRepo.updateUserProfile(
@@ -582,6 +631,9 @@ class AuthStateManager extends ChangeNotifier {
       _currentPreferences = null;
       _state = AppAuthState.unauthenticated;
       _errorMessage = null;
+      AdminAuthorizationService().clearSession();
+      NotificationService().clearSession();
+      PushNotificationService().onLogout();
       notifyListeners();
     }
   }

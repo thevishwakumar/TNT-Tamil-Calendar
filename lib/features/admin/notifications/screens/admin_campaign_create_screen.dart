@@ -18,7 +18,7 @@ class AdminCampaignCreateScreen extends StatefulWidget {
   });
 
   @override
-  _AdminCampaignCreateScreenState createState() => _AdminCampaignCreateScreenState();
+  State<AdminCampaignCreateScreen> createState() => _AdminCampaignCreateScreenState();
 }
 
 class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
@@ -116,14 +116,29 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
       _scheduledTime.minute,
     );
 
+    final titleEn = _titleEnController.text.trim();
+    final titleTa = _titleTaController.text.trim();
+    final titleGen = _titleController.text.trim();
+    final effectiveTitle = titleEn.isNotEmpty
+        ? titleEn
+        : (titleTa.isNotEmpty ? titleTa : (titleGen.isNotEmpty ? titleGen : 'Notification'));
+    final effectiveTitleTa = titleTa.isNotEmpty ? titleTa : effectiveTitle;
+    final effectiveTitleEn = titleEn.isNotEmpty ? titleEn : effectiveTitle;
+
+    final bodyEn = _bodyEnController.text.trim();
+    final bodyTa = _bodyTaController.text.trim();
+    final effectiveBody = bodyEn.isNotEmpty ? bodyEn : (bodyTa.isNotEmpty ? bodyTa : '');
+    final effectiveBodyTa = bodyTa.isNotEmpty ? bodyTa : effectiveBody;
+    final effectiveBodyEn = bodyEn.isNotEmpty ? bodyEn : effectiveBody;
+
     return NotificationCampaign(
       id: widget.initialCampaign?.id ?? 'camp-${DateTime.now().millisecondsSinceEpoch}',
-      title: _titleEnController.text.isNotEmpty ? _titleEnController.text : _titleController.text,
-      titleTamil: _titleTaController.text,
-      titleEnglish: _titleEnController.text,
-      body: _bodyEnController.text,
-      messageTamil: _bodyTaController.text,
-      messageEnglish: _bodyEnController.text,
+      title: effectiveTitle,
+      titleTamil: effectiveTitleTa,
+      titleEnglish: effectiveTitleEn,
+      body: effectiveBody,
+      messageTamil: effectiveBodyTa,
+      messageEnglish: effectiveBodyEn,
       category: _selectedCategory,
       audienceType: _selectedAudience,
       status: status,
@@ -414,13 +429,13 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      if (_selectedLanguageTab == 0) ...[
+                      if (_selectedLanguageTab == 'ta') ...[
                         // Tamil Fields
                         AdminTextField(
                           controller: _titleTaController,
                           label: 'அறிவிப்பு தலைப்பு (Tamil Title)',
                           hint: 'எ.கா. நாளை சுப முகூர்த்த நாள்',
-                          isRequired: true,
+                          isRequired: _titleEnController.text.trim().isEmpty,
                         ),
                         const SizedBox(height: 14),
                         AdminTextField(
@@ -428,7 +443,7 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
                           label: 'அறிவிப்பு செய்தி (Tamil Body)',
                           hint: 'முழு விவரங்கள் மற்றும் நேரங்கள்...',
                           maxLines: 4,
-                          isRequired: true,
+                          isRequired: _bodyEnController.text.trim().isEmpty,
                         ),
                       ] else ...[
                         // English Fields
@@ -436,7 +451,7 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
                           controller: _titleEnController,
                           label: 'Notification Title (English)',
                           hint: 'e.g. Auspicious Muhurtham Day Tomorrow',
-                          isRequired: true,
+                          isRequired: _titleTaController.text.trim().isEmpty,
                         ),
                         const SizedBox(height: 14),
                         AdminTextField(
@@ -444,7 +459,7 @@ class _AdminCampaignCreateScreenState extends State<AdminCampaignCreateScreen> {
                           label: 'Notification Message (English)',
                           hint: 'Detailed message body for English users...',
                           maxLines: 4,
-                          isRequired: true,
+                          isRequired: _bodyTaController.text.trim().isEmpty,
                         ),
                       ],
                     ],

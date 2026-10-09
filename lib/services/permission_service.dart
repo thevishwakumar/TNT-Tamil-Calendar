@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../core/localization/tnt_localizations.dart';
+import 'push_notification_service.dart';
 
 class PermissionService {
   static final PermissionService _instance = PermissionService._internal();
@@ -25,7 +26,8 @@ class PermissionService {
       titleKey: 'location_permission_title',
       descKey: 'location_permission_desc',
       defaultTitle: 'Location Required',
-      defaultDesc: 'Allow location access to provide accurate Panchangam, timings and location-based calendar information for your area.',
+      defaultDesc:
+          'Allow location access to provide accurate Panchangam, timings and location-based calendar information for your area.',
       icon: Icons.location_on_rounded,
     );
 
@@ -56,14 +58,19 @@ class PermissionService {
       titleKey: 'notification_permission_title',
       descKey: 'notification_permission_desc',
       defaultTitle: 'Notifications Required',
-      defaultDesc: 'Allow notifications to receive festival updates, calendar reminders and important announcements.',
+      defaultDesc:
+          'Allow notifications to receive festival updates, calendar reminders and important announcements.',
       icon: Icons.notifications_active_rounded,
     );
 
     if (proceed == true) {
       final newStatus = await Permission.notification.request();
       if (!context.mounted) return false;
-      if (newStatus.isGranted) return true;
+      if (newStatus.isGranted) {
+        PushNotificationService()
+            .requestNotificationPermission(forcePrompt: true);
+        return true;
+      }
       if (newStatus.isPermanentlyDenied) {
         _showPermanentlyDeniedDialog(context, 'notification');
       }
@@ -72,7 +79,8 @@ class PermissionService {
   }
 
   /// Generic request for other permissions if needed (e.g., Camera for Admin).
-  Future<bool> requestPermission(BuildContext context, Permission permission, String nameKey, String defaultName) async {
+  Future<bool> requestPermission(BuildContext context, Permission permission,
+      String nameKey, String defaultName) async {
     final status = await permission.status;
     if (!context.mounted) return false;
 
@@ -88,7 +96,8 @@ class PermissionService {
       titleKey: 'permission_required_title',
       descKey: 'permission_required_desc',
       defaultTitle: '$defaultName Required',
-      defaultDesc: 'This feature requires access to $defaultName to function correctly.',
+      defaultDesc:
+          'This feature requires access to $defaultName to function correctly.',
       icon: Icons.security_rounded,
     );
 
@@ -113,7 +122,8 @@ class PermissionService {
   }) async {
     final provider = TNTLocalizationsProvider.of(context);
     final localizations = provider?.localizations;
-    String translate(String key, String def) => localizations?.translate(key) ?? def;
+    String translate(String key, String def) =>
+        localizations?.translate(key) ?? def;
 
     return showDialog<bool>(
       context: context,
@@ -127,7 +137,8 @@ class PermissionService {
             Expanded(
               child: Text(
                 translate(titleKey, defaultTitle),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -139,14 +150,16 @@ class PermissionService {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(translate('not_now', 'Not Now'), style: const TextStyle(color: Colors.grey)),
+            child: Text(translate('not_now', 'Not Now'),
+                style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: Text(translate('allow', 'Allow')),
           ),
@@ -155,10 +168,12 @@ class PermissionService {
     );
   }
 
-  void _showPermanentlyDeniedDialog(BuildContext context, String permissionKey) {
+  void _showPermanentlyDeniedDialog(
+      BuildContext context, String permissionKey) {
     final provider = TNTLocalizationsProvider.of(context);
     final localizations = provider?.localizations;
-    String translate(String key, String def) => localizations?.translate(key) ?? def;
+    String translate(String key, String def) =>
+        localizations?.translate(key) ?? def;
 
     showDialog(
       context: context,
@@ -174,7 +189,8 @@ class PermissionService {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(translate('cancel', 'Cancel'), style: const TextStyle(color: Colors.grey)),
+            child: Text(translate('cancel', 'Cancel'),
+                style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -184,7 +200,8 @@ class PermissionService {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: Text(translate('open_settings', 'Open Settings')),
           ),

@@ -5,6 +5,7 @@ import '../models/tnt_models.dart';
 import '../services/supabase_service.dart';
 import 'panchang_repository.dart';
 import 'location_repository.dart';
+import '../core/network/tnt_resilience.dart';
 
 // =====================================================================
 // AUTHENTICATION REPOSITORY
@@ -213,18 +214,38 @@ class UserPreferencesRepository {
 // =====================================================================
 class CalendarRepository {
   final SupabaseService _db = SupabaseService();
+  static final Map<String, CalendarDay> _cache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheTtl = Duration(minutes: 30);
 
-  Future<CalendarDay?> fetchCalendarDay(DateTime date) async {
+  static void invalidateCache() {
+    _cache.clear();
+    _cacheTimestamps.clear();
+  }
+
+  Future<CalendarDay?> fetchCalendarDay(DateTime date, {bool forceRefresh = false}) async {
+    final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final cachedTime = _cacheTimestamps[dateStr];
+    if (!forceRefresh && cachedTime != null && DateTime.now().difference(cachedTime) < _cacheTtl) {
+      final cached = _cache[dateStr];
+      if (cached != null) return cached;
+    }
+
     if (!_db.isInitialized) return null;
     try {
-      final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-      final data = await _db.client
-          .from('calendar_days')
-          .select()
-          .eq('date', dateStr)
-          .maybeSingle();
+      final data = await TNTResilience.retry(
+        operation: () => _db.client
+            .from('calendar_days')
+            .select()
+            .eq('date', dateStr)
+            .maybeSingle(),
+        operationName: 'fetchCalendarDay',
+      );
       if (data == null) return null;
-      return CalendarDay.fromJson(data);
+      final day = CalendarDay.fromJson(data);
+      _cache[dateStr] = day;
+      _cacheTimestamps[dateStr] = DateTime.now();
+      return day;
     } catch (e) {
       throw TNTException('Calendar retrieval failed: $e', 'CALENDAR_FETCH_FAILED');
     }
@@ -255,16 +276,27 @@ class PanchangamRepository {
 // =====================================================================
 class MuhurthamRepository {
   final SupabaseService _db = SupabaseService();
+  static final Map<String, List<MuhurthamDate>> _cache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheTtl = Duration(minutes: 15);
+
+  static void invalidateCache() {
+    _cache.clear();
+    _cacheTimestamps.clear();
+  }
 
   Future<List<String>> fetchCategories() async {
     if (!_db.isInitialized) {
       return ['Marriage', 'Housewarming', 'Engagement', 'Business'];
     }
     try {
-      final data = await _db.client
-          .from('muhurtham_dates')
-          .select('category')
-          .eq('is_published', true);
+      final data = await TNTResilience.retry(
+        operation: () => _db.client
+            .from('muhurtham_dates')
+            .select('category')
+            .eq('is_published', true),
+        operationName: 'fetchMuhurthamCategories',
+      );
       final set = <String>{};
       for (final item in data as List) {
         if (item['category'] != null) {
@@ -289,6 +321,13 @@ class MuhurthamRepository {
     String? location,
     bool forceRefresh = false,
   }) async {
+    final cacheKey = '$year-$month-$category-$phase-$location';
+    final cachedTime = _cacheTimestamps[cacheKey];
+    if (!forceRefresh && cachedTime != null && DateTime.now().difference(cachedTime) < _cacheTtl) {
+      final cached = _cache[cacheKey];
+      if (cached != null) return cached;
+    }
+
     // 1. Fetch Supabase overrides/custom Muhurthams
     List<MuhurthamDate> supabaseData = [];
     if (_db.isInitialized) {
@@ -310,7 +349,10 @@ class MuhurthamRepository {
           query = query.eq('is_valarthirai', phase == 'valarpirai');
         }
 
-        final data = await query.order('date');
+        final data = await TNTResilience.retry(
+          operation: () => query.order('date'),
+          operationName: 'fetchMuhurthamDates',
+        );
         supabaseData = (data as List).map((json) => MuhurthamDate.fromJson(json)).toList();
       } catch (e) {
         debugPrint('Supabase Muhurtham fetch failed: $e');
@@ -341,6 +383,8 @@ class MuhurthamRepository {
 
     final result = mergedMap.values.toList();
     result.sort((a, b) => a.date.compareTo(b.date));
+    _cache[cacheKey] = result;
+    _cacheTimestamps[cacheKey] = DateTime.now();
     return result;
   }
 }
@@ -350,6 +394,14 @@ class MuhurthamRepository {
 // =====================================================================
 class SpecialDaysRepository {
   final SupabaseService _db = SupabaseService();
+  static final Map<String, List<SpecialDay>> _cache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheTtl = Duration(minutes: 15);
+
+  static void invalidateCache() {
+    _cache.clear();
+    _cacheTimestamps.clear();
+  }
 
   Future<List<String>> fetchCategories() async {
     if (!_db.isInitialized) {
@@ -360,10 +412,13 @@ class SpecialDaysRepository {
       ];
     }
     try {
-      final data = await _db.client
-          .from('special_days')
-          .select('category')
-          .eq('is_published', true);
+      final data = await TNTResilience.retry(
+        operation: () => _db.client
+            .from('special_days')
+            .select('category')
+            .eq('is_published', true),
+        operationName: 'fetchSpecialDayCategories',
+      );
       final set = <String>{};
       for (final item in data as List) {
         if (item['category'] != null) {
@@ -383,6 +438,13 @@ class SpecialDaysRepository {
   }
 
   Future<List<SpecialDay>> fetchSpecialDays(int year, int month, {String? category, bool forceRefresh = false}) async {
+    final cacheKey = '$year-$month-$category';
+    final cachedTime = _cacheTimestamps[cacheKey];
+    if (!forceRefresh && cachedTime != null && DateTime.now().difference(cachedTime) < _cacheTtl) {
+      final cached = _cache[cacheKey];
+      if (cached != null) return cached;
+    }
+
     List<SpecialDay> supabaseData = [];
     if (_db.isInitialized) {
       try {
@@ -400,7 +462,10 @@ class SpecialDaysRepository {
           query = query.eq('category', category.toLowerCase());
         }
             
-        final data = await query.order('date');
+        final data = await TNTResilience.retry(
+          operation: () => query.order('date'),
+          operationName: 'fetchSpecialDays',
+        );
         supabaseData = (data as List).map((json) => SpecialDay.fromJson(json)).toList();
       } catch (e) {
         debugPrint('Supabase Special days fetch failed: $e');
@@ -447,6 +512,8 @@ class SpecialDaysRepository {
       return true;
     }).toList();
     result.sort((a, b) => a.date.compareTo(b.date));
+    _cache[cacheKey] = result;
+    _cacheTimestamps[cacheKey] = DateTime.now();
     return result;
   }
 
@@ -488,16 +555,27 @@ class SpecialDaysRepository {
 
 class FestivalRepository {
   final SupabaseService _db = SupabaseService();
+  static final Map<String, List<Festival>> _cache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheTtl = Duration(minutes: 15);
+
+  static void invalidateCache() {
+    _cache.clear();
+    _cacheTimestamps.clear();
+  }
 
   Future<List<String>> fetchCategories() async {
     if (!_db.isInitialized) {
       return ['Festivals', 'Government Holiday', 'Hindu', 'Christian', 'Muslim'];
     }
     try {
-      final data = await _db.client
-          .from('festivals')
-          .select('type')
-          .eq('is_published', true);
+      final data = await TNTResilience.retry(
+        operation: () => _db.client
+            .from('festivals')
+            .select('type')
+            .eq('is_published', true),
+        operationName: 'fetchFestivalCategories',
+      );
       final set = <String>{};
       for (final item in data as List) {
         if (item['type'] != null) {
@@ -511,6 +589,13 @@ class FestivalRepository {
   }
 
   Future<List<Festival>> fetchFestivals(int year, int month, {String? category, bool forceRefresh = false}) async {
+    final cacheKey = '$year-$month-$category';
+    final cachedTime = _cacheTimestamps[cacheKey];
+    if (!forceRefresh && cachedTime != null && DateTime.now().difference(cachedTime) < _cacheTtl) {
+      final cached = _cache[cacheKey];
+      if (cached != null) return cached;
+    }
+
     List<Festival> supabaseData = [];
     if (_db.isInitialized) {
       try {
@@ -528,7 +613,10 @@ class FestivalRepository {
           query = query.eq('type', category.toLowerCase());
         }
             
-        final data = await query.order('date');
+        final data = await TNTResilience.retry(
+          operation: () => query.order('date'),
+          operationName: 'fetchFestivals',
+        );
         supabaseData = (data as List).map((json) => Festival.fromJson(json)).toList();
       } catch (e) {
         debugPrint('Supabase Festival fetch failed: $e');
@@ -565,6 +653,8 @@ class FestivalRepository {
       return true;
     }).toList();
     result.sort((a, b) => a.date.compareTo(b.date));
+    _cache[cacheKey] = result;
+    _cacheTimestamps[cacheKey] = DateTime.now();
     return result;
   }
 

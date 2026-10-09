@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
 class TNTBrandHeader extends StatelessWidget {
-  const TNTBrandHeader({super.key});
+  final EdgeInsetsGeometry? padding;
+  final double? fontSize;
+  final double? logoSize;
+
+  const TNTBrandHeader({
+    super.key,
+    this.padding,
+    this.fontSize,
+    this.logoSize,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -9,50 +18,56 @@ class TNTBrandHeader extends StatelessWidget {
       builder: (context, constraints) {
         // Determine sizing based on available width
         final screenWidth = MediaQuery.of(context).size.width;
-        double logoSize = 32.0;
-        double fontSize = 14.0;
+        double defaultLogoSize = 32.0;
+        double defaultFontSize = 14.0;
         double spacing = 8.0;
 
         if (screenWidth <= 360) {
-          logoSize = 24.0;
-          fontSize = 12.0;
+          defaultLogoSize = 24.0;
+          defaultFontSize = 12.0;
           spacing = 4.0;
         } else if (screenWidth > 600) {
-          logoSize = 40.0;
-          fontSize = 16.0;
+          defaultLogoSize = 40.0;
+          defaultFontSize = 16.0;
           spacing = 12.0;
         }
 
+        final effectiveLogoSize = logoSize ?? defaultLogoSize;
+        final effectiveFontSize = fontSize ?? defaultFontSize;
+
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(logoSize / 4),
+                borderRadius: BorderRadius.circular(effectiveLogoSize / 4),
                 child: Image.asset(
                   'assets/images/tnt_logo.jpg',
-                  width: logoSize,
-                  height: logoSize,
+                  width: effectiveLogoSize,
+                  height: effectiveLogoSize,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      width: logoSize,
-                      height: logoSize,
+                      width: effectiveLogoSize,
+                      height: effectiveLogoSize,
                       color: Colors.grey[300],
-                      child: Icon(Icons.calendar_today, size: logoSize * 0.6, color: Colors.grey[600]),
+                      child: Icon(Icons.calendar_today, size: effectiveLogoSize * 0.6, color: Colors.grey[600]),
                     );
                   },
                 ),
               ),
               SizedBox(width: spacing),
-              Text(
-                "TNT Tamil Calendar",
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  // Inherit color from the AppBar theme or use white if on dark primary
+              Flexible(
+                child: Text(
+                  "TNT Tamil Calendar",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: effectiveFontSize,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],

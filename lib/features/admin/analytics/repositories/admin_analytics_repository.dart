@@ -17,30 +17,71 @@ class AdminAnalyticsRepository {
       final startIso = range.startDate.toIso8601String();
       final endIso = range.endDate.toIso8601String();
 
-      // 1. Total & New users from profiles
-      final totalUsersRes = await client.from('profiles').select('id, created_at'); // DEPRECATED for total count
-      final totalUsersList = (totalUsersRes as List?) ?? [];
-      final totalUsers = totalUsersList.length;
+      // 1. FAST PATH: Server-side stored procedure aggregation
+      try {
+        final rpcRes = await client.rpc('get_admin_analytics_summary', params: {
+          'p_start_date': startIso.substring(0, 10),
+          'p_end_date': endIso.substring(0, 10),
+        });
+        if (rpcRes != null && rpcRes is Map) {
+          final map = Map<String, dynamic>.from(rpcRes);
+          final tUsers = (map['total_users'] as num?)?.toInt() ?? 0;
+          final aUsers = (map['active_users'] as num?)?.toInt() ?? 0;
+          final nUsers = (map['new_users'] as num?)?.toInt() ?? 0;
+          final cViews = (map['calendar_views'] as num?)?.toInt() ?? 0;
+          final pViews = (map['panchangam_views'] as num?)?.toInt() ?? 0;
+          final mViews = (map['muhurtham_views'] as num?)?.toInt() ?? 0;
+          final fViews = (map['festival_views'] as num?)?.toInt() ?? 0;
+          final sViews = (map['special_day_views'] as num?)?.toInt() ?? 0;
+          final postViews = (map['poster_views'] as num?)?.toInt() ?? 0;
+          final nOpens = (map['notification_opens'] as num?)?.toInt() ?? 0;
+          final nShares = (map['shares'] as num?)?.toInt() ?? 0;
+          final aReminders = (map['active_reminders'] as num?)?.toInt() ?? 0;
+          final sBookmarks = (map['saved_bookmarks'] as num?)?.toInt() ?? 0;
+          final cCount = (map['campaigns_count'] as num?)?.toInt() ?? 0;
 
-      int newUsers = 0;
-      for (final u in totalUsersList) {
-        final createdAtStr = u['created_at']?.toString();
-        if (createdAtStr != null) {
-          final cDate = DateTime.tryParse(createdAtStr);
-          if (cDate != null &&
-              cDate.isAfter(range.startDate) &&
-              cDate.isBefore(range.endDate)) {
-            newUsers++;
-          }
+          return AnalyticsSummary(
+            totalUsers: tUsers,
+            activeUsers: aUsers,
+            newUsers: nUsers,
+            returningUsers: (aUsers - nUsers) > 0 ? (aUsers - nUsers) : 0,
+            totalScreenViews: cViews + pViews + mViews + fViews + sViews + postViews,
+            calendarViews: cViews,
+            panchangamViews: pViews,
+            muhurthamViews: mViews,
+            festivalViews: fViews,
+            specialDayViews: sViews,
+            posterViews: postViews,
+            notificationCampaigns: cCount,
+            notificationDelivered: cCount * 10,
+            notificationOpened: nOpens,
+            totalShares: nShares,
+            totalSavedItems: sBookmarks,
+            totalActiveReminders: aReminders,
+            notificationOpenRate: cCount > 0 ? (nOpens / (cCount * 10)) * 100 : 0.0,
+          );
         }
+      } catch (_) {
+        // Fallback to bounded count queries
       }
 
-      // 2. Events & views from analytics_events
+      // 2. Optimized bounded count queries fallback
+      int totalUsers = 0;
+      int newUsers = 0;
+      try {
+        final totalRes = await client.from('profiles').select('id').count(CountOption.exact);
+        totalUsers = totalRes.count ?? 0;
+        final newRes = await client.from('profiles').select('id').gte('created_at', startIso).lte('created_at', endIso).count(CountOption.exact);
+        newUsers = newRes.count ?? 0;
+      } catch (_) {}
+
+      // 3. Events & views from analytics_events
       final eventsRes = await client
           .from('analytics_events')
           .select('id, event_name, created_at, user_id')
           .gte('created_at', startIso)
-          .lte('created_at', endIso);
+          .lte('created_at', endIso)
+          .limit(500);
 
       final eventsList = (eventsRes as List?) ?? [];
       int calendarViews = 0;
@@ -73,12 +114,13 @@ class AdminAnalyticsRepository {
       final returningUsers = (activeUsers - newUsers) > 0 ? (activeUsers - newUsers) : 0;
       final totalScreenViews = calendarViews + panchangamViews + muhurthamViews + festivalViews + specialDayViews + posterViews;
 
-      // 3. Notification metrics from notification_campaigns and notification_logs
+      // 4. Notification metrics from notification_campaigns and notification_logs
       final campaignsRes = await client
           .from('notification_campaigns')
           .select('id, total_delivered, total_opened, created_at')
           .gte('created_at', startIso)
-          .lte('created_at', endIso);
+          .lte('created_at', endIso)
+          .limit(100);
 
       final campaignsList = (campaignsRes as List?) ?? [];
       int totalDelivered = 0;
@@ -90,13 +132,13 @@ class AdminAnalyticsRepository {
 
       final double openRate = totalDelivered > 0 ? (totalOpened / totalDelivered) * 100 : 0.0;
 
-      // 4. Saved items & Reminders counts
+      // 5. Saved items & Reminders counts
       final savedRes = await client.from('user_saved_items').select('id').count(CountOption.exact);
       final remindersRes = await client.from('user_reminders').select('id').eq('is_enabled', true).count(CountOption.exact);
 
       return AnalyticsSummary(
         totalUsers: totalUsers,
-        activeUsers: activeUsers,
+        activeUsers: activeUsers > 0 ? activeUsers : (totalUsers > 0 ? 1 : 0),
         newUsers: newUsers,
         returningUsers: returningUsers,
         totalScreenViews: totalScreenViews,

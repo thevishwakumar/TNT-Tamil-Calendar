@@ -1,4 +1,3 @@
-import 'package:tnt_tamil_calendar/widgets/tnt_brand_header.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../../core/localization/tnt_localizations.dart';
@@ -12,6 +11,7 @@ import '../../festivals/screens/festival_detail_screen.dart';
 import '../../special_days/screens/special_day_detail_screen.dart';
 import '../../reminders/screens/reminders_screen.dart';
 import '../../panchangam/screens/panchangam_screen.dart';
+import '../../features/admin/notifications/services/notification_deep_link_router.dart';
 
 enum NotificationTabFilter { all, unread, muhurthamFestival, reminders }
 
@@ -29,7 +29,7 @@ class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key, required this.apiService});
 
   @override
-  _NotificationsScreenState createState() => _NotificationsScreenState();
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
@@ -40,6 +40,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     _notificationService.init();
+    _notificationService.fetchNotifications();
   }
 
   List<NotificationItem> _getFilteredNotifications(List<NotificationItem> all) {
@@ -47,11 +48,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotificationTabFilter.unread:
         return all.where((n) => !n.isRead).toList();
       case NotificationTabFilter.muhurthamFestival:
-        return all.where((n) => n.notificationType == 'muhurtham' || n.notificationType == 'festival' || n.notificationType == 'special_day').toList();
+        return all.where((n) {
+          final t = n.notificationType.toLowerCase();
+          return t == 'muhurtham' || t == 'festival' || t == 'special_day';
+        }).toList();
       case NotificationTabFilter.reminders:
-        return all.where((n) => n.notificationType == 'reminder').toList();
+        return all.where((n) => n.notificationType.toLowerCase() == 'reminder').toList();
       case NotificationTabFilter.all:
-      default:
         return all;
     }
   }
@@ -64,10 +67,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     if (!mounted) return;
 
-    final type = item.relatedItemType ?? item.notificationType;
+    // 2. Actionable deep linking via Router
+    if (item.deepLink != null && item.deepLink!.trim().isNotEmpty) {
+      final handled = await NotificationDeepLinkRouter().handleDeepLink(
+        context,
+        item.deepLink,
+        apiService: widget.apiService,
+      );
+      if (handled) return;
+    }
+
+    final type = (item.relatedItemType ?? item.notificationType).toLowerCase();
     final itemId = item.relatedItemId;
 
-    // 2. Actionable deep linking
+    // 3. Fallback type-based deep linking
     if (type == 'muhurtham') {
       final now = DateTime.now();
       final muhurthams = await widget.apiService.getMarriageMuhurthams(now.year, now.month);
@@ -144,6 +157,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
       }
     } else if (type == 'reminder') {
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -151,6 +165,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       );
     } else if (type == 'panchangam') {
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -172,6 +187,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final allNotifs = _notificationService.notifications;
         final filteredNotifs = _getFilteredNotifications(allNotifs);
         final unreadCount = _notificationService.unreadCount;
+        final muhurthamFestivalCount = allNotifs.where((n) {
+          final t = n.notificationType.toLowerCase();
+          return t == 'muhurtham' || t == 'festival' || t == 'special_day';
+        }).length;
+        final remindersCount = allNotifs.where((n) => n.notificationType.toLowerCase() == 'reminder').length;
 
         return Scaffold(
           backgroundColor: TNTColors.background,
@@ -263,12 +283,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(width: 8),
                         _buildFilterChip(
                           label: isTamil ? 'முகூர்த்தம் & பண்டிகை' : 'Muhurtham & Festivals',
+                          count: muhurthamFestivalCount,
                           selected: _selectedFilter == NotificationTabFilter.muhurthamFestival,
                           onTap: () => setState(() => _selectedFilter = NotificationTabFilter.muhurthamFestival),
                         ),
                         const SizedBox(width: 8),
                         _buildFilterChip(
                           label: isTamil ? 'நினைவூட்டல்கள்' : 'Reminders',
+                          count: remindersCount,
                           selected: _selectedFilter == NotificationTabFilter.reminders,
                           onTap: () => setState(() => _selectedFilter = NotificationTabFilter.reminders),
                         ),
@@ -280,21 +302,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
           ),
-          body: filteredNotifs.isEmpty
-              ? _buildEmptyState(isTamil)
-              : ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  itemCount: filteredNotifs.length,
-                  itemBuilder: (context, index) {
-                    final item = filteredNotifs[index];
-                    return NotificationCard(
-                      item: item,
-                      isTamil: isTamil,
-                      onTap: () => _handleNotificationTap(item, isTamil),
-                      onMarkRead: () => _notificationService.markAsRead(item.id),
-                    );
-                  },
+          body: _notificationService.isLoading && allNotifs.isEmpty
+              ? const Center(child: CircularProgressIndicator(color: TNTColors.primary))
+              : RefreshIndicator(
+                  color: TNTColors.primary,
+                  onRefresh: () => _notificationService.fetchNotifications(),
+                  child: filteredNotifs.isEmpty
+                      ? _buildEmptyState(isTamil)
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          itemCount: filteredNotifs.length,
+                          itemBuilder: (context, index) {
+                            final item = filteredNotifs[index];
+                            return NotificationCard(
+                              item: item,
+                              isTamil: isTamil,
+                              onTap: () => _handleNotificationTap(item, isTamil),
+                              onMarkRead: () => _notificationService.markAsRead(item.id),
+                            );
+                          },
+                        ),
                 ),
         );
       },
@@ -353,64 +381,70 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildEmptyState(bool isTamil) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: TNTColors.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                size: 32,
-                color: TNTColors.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isTamil ? 'அறிவிப்புகள் ஏதுமில்லை' : 'No Notifications',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isTamil
-                  ? 'சுப முகூர்த்தம், பண்டிகைகள் மற்றும் நினைவூட்டல் எச்சரிக்கைகள் இங்கு காண்பிக்கப்படும்.'
-                  : 'Important Muhurtham, festival, and reminder alerts will appear here.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: TNTColors.textSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const NotificationSettingsScreen(),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: TNTColors.primary.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
                   ),
-                );
-              },
-              icon: const Icon(Icons.settings_outlined, size: 16),
-              label: Text(
-                isTamil ? 'அறிவிப்பு அமைப்புகளை சரிபார்' : 'Check Notification Settings',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: TNTColors.surface,
-                foregroundColor: TNTColors.primary,
-                elevation: 0,
-                side: const BorderSide(color: TNTColors.primary),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    size: 32,
+                    color: TNTColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isTamil ? 'அறிவிப்புகள் ஏதுமில்லை' : 'No Notifications',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isTamil
+                      ? 'சுப முகூர்த்தம், பண்டிகைகள் மற்றும் நினைவூட்டல் எச்சரிக்கைகள் இங்கு காண்பிக்கப்படும்.'
+                      : 'Important Muhurtham, festival, and reminder alerts will appear here.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: TNTColors.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationSettingsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.settings_outlined, size: 16),
+                  label: Text(
+                    isTamil ? 'அறிவிப்பு அமைப்புகளை சரிபார்' : 'Check Notification Settings',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TNTColors.surface,
+                    foregroundColor: TNTColors.primary,
+                    elevation: 0,
+                    side: const BorderSide(color: TNTColors.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

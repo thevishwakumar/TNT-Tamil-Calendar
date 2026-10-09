@@ -149,15 +149,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // App Logo & Brand Header
                   Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Image.asset(
-                  'assets/images/tnt_logo.jpg',
-                  height: 220,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          maxWidth: 300,
+                          maxHeight: 250,
+                        ),
+                        child: Image.asset(
+                          'assets/images/tnt_logo.jpg',
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 14),
 
                   // Header: TNT & Sign in to your account

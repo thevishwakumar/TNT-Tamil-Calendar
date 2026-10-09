@@ -18,6 +18,13 @@ import '../../features/catering/screens/catering_enquiry_screen.dart';
 import '../../panchangam/models/panchangam_bundle.dart';
 import '../../repositories/panchang_repository.dart';
 import '../../services/navamsha_panchang_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+enum PanchangDataSource {
+  online,
+  navamsha,
+  offline,
+}
 
 
 
@@ -47,7 +54,16 @@ class _HomeScreenState extends State<HomeScreen> {
   List<SpecialDay> _specialDays = [];
   List<Festival> _festivals = [];
   List<MuhurthamDate> _muhurthams = [];
-  bool _isOfflineCacheActive = false;
+  PanchangDataSource _activeSource = PanchangDataSource.offline;
+
+  static const Map<String, Map<String, double>> _cityCoordinates = {
+    'Chennai': {'lat': 13.0827, 'lng': 80.2707},
+    'Madurai': {'lat': 9.9252, 'lng': 78.1198},
+    'Coimbatore': {'lat': 11.0168, 'lng': 76.9558},
+    'Trichy': {'lat': 10.7905, 'lng': 78.7047},
+    'Salem': {'lat': 11.6643, 'lng': 78.1460},
+    'Tirunelveli': {'lat': 8.7139, 'lng': 77.7567},
+  };
   
   // Localized analytics non-blocking logger
   final _dbService = SupabaseService();
@@ -76,8 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Dynamic asynchronous data loader
-  Future<void> _loadAllHomeData() async {
+  /// Dynamic asynchronous data loader with multi-source selection
+  Future<void> _loadAllHomeData({PanchangDataSource? targetSource}) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -89,21 +105,87 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     PanchangamDailyBundle? bundle;
 
+    PanchangDataSource source = targetSource ?? _activeSource;
+    if (targetSource == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getString('tnt_panchang_source');
+        if (saved != null) {
+          source = PanchangDataSource.values.firstWhere(
+            (e) => e.name == saved,
+            orElse: () => _activeSource,
+          );
+        }
+      } catch (_) {}
+    }
+
+    final lat = _cityCoordinates[_selectedCity]?['lat'] ?? 11.0168;
+    final lng = _cityCoordinates[_selectedCity]?['lng'] ?? 76.9558;
+    const tz = 5.5;
+
+    final loc = UserLocationItem(
+      id: 'loc-$_selectedCity',
+      userId: 'active-user',
+      name: _selectedCity,
+      city: _selectedCity,
+      timezone: 'Asia/Kolkata',
+      latitude: lat,
+      longitude: lng,
+      createdAt: DateTime.now(),
+    );
+
+    final repo = PanchangRepository();
+
     try {
-      final repo = PanchangRepository();
-      final loc = UserLocationItem(
-        id: 'loc-${_selectedCity}',
-        userId: 'active-user',
-        name: _selectedCity,
-        city: _selectedCity,
-        timezone: 'Asia/Kolkata',
-        createdAt: DateTime.now(),
-      );
-      
-      bundle = await repo.getDailyPanchangam(date: now, location: loc);
-      
+      if (source == PanchangDataSource.navamsha) {
+        // Live Navamsha Astrological API via Edge Function
+        final navamshaService = NavamshaPanchangService();
+        final rawData = await navamshaService.getDailyBundle(
+          date: now,
+          latitude: lat,
+          longitude: lng,
+          timezone: tz,
+          cityName: _selectedCity,
+          forceRefresh: true,
+        );
+        final isMath = rawData['astronomical']?['metadata']?['sourceProvider'] == 'astronomical_ephemeris_v1';
+        bundle = repo.mapToPanchangamBundle(now, loc, rawData, isOffline: isMath);
+        await PanchangLocalCacheService().cacheDailyPanchangam(
+          date: now,
+          location: _selectedCity,
+          bundle: bundle,
+        );
+      } else if (source == PanchangDataSource.online) {
+        // Online fetch from central Supabase / API repository
+        bundle = await repo.getDailyPanchangam(date: now, location: loc, forceRefresh: true);
+      } else {
+        // source == PanchangDataSource.offline: Local Storage / Offline Cached / Astronomical formulas
+        final cached = await PanchangLocalCacheService().getCachedDailyPanchangam(
+          date: now,
+          location: _selectedCity,
+        );
+        if (cached != null) {
+          bundle = cached;
+        } else {
+          final mathData = NavamshaPanchangService().computeLocalAstronomicalFallback(
+            year: now.year,
+            month: now.month,
+            date: now.day,
+            latitude: lat,
+            longitude: lng,
+            timezone: tz,
+            cityName: _selectedCity,
+          );
+          bundle = repo.mapToPanchangamBundle(now, loc, mathData, isOffline: true);
+          await PanchangLocalCacheService().cacheDailyPanchangam(
+            date: now,
+            location: _selectedCity,
+            bundle: bundle,
+          );
+        }
+      }
+
       // Async fetching from repositories/services
-      // Fallback to empty lists if they throw (e.g. Supabase uninitialized)
       final specialDaysFuture = widget.apiService.getSpecialDays(now.year, now.month).catchError((_) => <SpecialDay>[]);
       final festivalsFuture = widget.apiService.getFestivals(now.year, now.month).catchError((_) => <Festival>[]);
       final muhurthamsFuture = widget.apiService.getMarriageMuhurthams(now.year, now.month).catchError((_) => <MuhurthamDate>[]);
@@ -114,24 +196,19 @@ class _HomeScreenState extends State<HomeScreen> {
         muhurthamsFuture
       ]);
 
-      final hasCached = await PanchangLocalCacheService().hasCachedPanchangam(
-        date: now,
-        location: _selectedCity,
-      );
-
       if (mounted) {
         setState(() {
           _specialDays = results[0] as List<SpecialDay>;
           _festivals = results[1] as List<Festival>;
           _muhurthams = results[2] as List<MuhurthamDate>;
-          
+
           if (bundle != null) {
-            _todayCalendar = bundle!.calendarDay;
-            _todayPanchangam = bundle!.panchangam;
-            _timings = bundle!.timings;
+            _todayCalendar = bundle.calendarDay;
+            _todayPanchangam = bundle.panchangam;
+            _timings = bundle.timings;
           }
-          
-          _isOfflineCacheActive = bundle?.isFromOfflineCache ?? hasCached;
+
+          _activeSource = source;
           _isLoading = false;
         });
       }
@@ -145,40 +222,31 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _isLoading = false;
           if (bundle != null) {
-            _todayCalendar = bundle!.calendarDay;
-            _todayPanchangam = bundle!.panchangam;
-            _timings = bundle!.timings;
+            _todayCalendar = bundle.calendarDay;
+            _todayPanchangam = bundle.panchangam;
+            _timings = bundle.timings;
             _errorMsg = null;
           } else if (cachedBundle != null) {
             _todayCalendar = cachedBundle.calendarDay;
             _todayPanchangam = cachedBundle.panchangam;
             _timings = cachedBundle.timings;
-            _isOfflineCacheActive = true;
+            _activeSource = PanchangDataSource.offline;
             _errorMsg = null;
           } else {
-            // High-precision mathematical fallback if all networks and caches failed
-            final loc = UserLocationItem(
-              id: 'loc-$_selectedCity',
-              userId: 'active-user',
-              name: _selectedCity,
-              city: _selectedCity,
-              timezone: 'Asia/Kolkata',
-              createdAt: DateTime.now(),
-            );
             final mathData = NavamshaPanchangService().computeLocalAstronomicalFallback(
               year: now.year,
               month: now.month,
               date: now.day,
-              latitude: 11.0168,
-              longitude: 76.9558,
-              timezone: 5.5,
+              latitude: lat,
+              longitude: lng,
+              timezone: tz,
               cityName: _selectedCity,
             );
-            final mathBundle = PanchangRepository().mapToPanchangamBundle(now, loc, mathData, isOffline: true);
+            final mathBundle = repo.mapToPanchangamBundle(now, loc, mathData, isOffline: true);
             _todayCalendar = mathBundle.calendarDay;
             _todayPanchangam = mathBundle.panchangam;
             _timings = mathBundle.timings;
-            _isOfflineCacheActive = true;
+            _activeSource = PanchangDataSource.offline;
             _errorMsg = null;
           }
         });
@@ -188,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Pull-to-refresh reload hook
   Future<void> _handleRefresh() async {
-    await _loadAllHomeData();
+    await _loadAllHomeData(targetSource: _activeSource);
     _triggerAnalyticsEvent('pull_to_refresh');
   }
 
@@ -412,40 +480,51 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 0,
       backgroundColor: TNTColors.surface,
       surfaceTintColor: Colors.transparent,
+      titleSpacing: 8,
       title: Row(
         children: [
-          // The logo and brand name
+          // The logo and brand name (compact without bloated horizontal padding)
           const Flexible(
             flex: 0,
-            child: TNTBrandHeader(),
+            child: TNTBrandHeader(
+              padding: EdgeInsets.zero,
+              fontSize: 13,
+              logoSize: 28,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           
-          // Location Selector Bubble
+          // Location Selector Bubble (constrained against overflow)
           Flexible(
             child: GestureDetector(
-            onTap: () => _showLocationPicker(context, translate),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: TNTColors.background,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: TNTColors.border),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on_rounded, size: 12, color: TNTColors.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    translate(_selectedCity.toLowerCase()),
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
-                  ),
-                  const SizedBox(width: 2),
-                  const Icon(Icons.keyboard_arrow_down_rounded, size: 12, color: TNTColors.textSecondary),
-                ],
+              onTap: () => _showLocationPicker(context, translate),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: TNTColors.background,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: TNTColors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on_rounded, size: 12, color: TNTColors.primary),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        translate(_selectedCity.toLowerCase()),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 12, color: TNTColors.textSecondary),
+                  ],
+                ),
               ),
             ),
-          ))
+          ),
         ],
       ),
       actions: [
@@ -458,6 +537,8 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.center,
               children: [
                 IconButton(
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   onPressed: () {
                     _triggerAnalyticsEvent('bell_clicked');
                     Navigator.push(
@@ -472,10 +553,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 if (unread > 0)
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 6,
+                    right: 6,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
                         color: TNTColors.primary,
                         shape: BoxShape.circle,
@@ -503,13 +584,15 @@ class _HomeScreenState extends State<HomeScreen> {
         
         // Profile Avatar shortcut
         IconButton(
+          padding: const EdgeInsets.all(6),
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           onPressed: () {
             _triggerAnalyticsEvent('avatar_clicked');
           },
           icon: const Icon(Icons.account_circle_outlined, color: TNTColors.textPrimary),
           tooltip: translate('profile'),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
@@ -718,26 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
               translate('today_panchangam'),
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
             ),
-            if (_isOfflineCacheActive)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.offline_pin_rounded, size: 12, color: Color(0xFFD97706)),
-                    const SizedBox(width: 4),
-                    Text(
-                      isTamil ? 'உள்ளூர் சேமிப்பகம்' : 'Offline Cached',
-                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                    ),
-                  ],
-                ),
-              ),
+            _buildSourceSelectorBadge(isTamil),
           ],
         ),
         const SizedBox(height: 10),
@@ -831,6 +895,278 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 2),
         Text(val, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: TNTColors.textPrimary)),
       ],
+    );
+  }
+
+  /// Interactive Source Selector badge for Panchangam
+  Widget _buildSourceSelectorBadge(bool isTamil) {
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    IconData iconData;
+    String labelText;
+
+    switch (_activeSource) {
+      case PanchangDataSource.navamsha:
+        bgColor = const Color(0xFFF3E8FF);
+        borderColor = const Color(0xFFDDD6FE);
+        textColor = const Color(0xFF6D28D9);
+        iconData = Icons.auto_awesome_rounded;
+        labelText = isTamil ? 'நவாம்சம் API' : 'Navamsha API';
+        break;
+      case PanchangDataSource.online:
+        bgColor = const Color(0xFFDCFCE7);
+        borderColor = const Color(0xFFBBF7D0);
+        textColor = const Color(0xFF15803D);
+        iconData = Icons.cloud_done_rounded;
+        labelText = isTamil ? 'ஆன்லைன்' : 'Online Cloud';
+        break;
+      case PanchangDataSource.offline:
+        bgColor = const Color(0xFFFEF3C7);
+        borderColor = const Color(0xFFFDE68A);
+        textColor = const Color(0xFF92400E);
+        iconData = Icons.offline_pin_rounded;
+        labelText = isTamil ? 'உள்ளூர் சேமிப்பகம்' : 'Offline Cached';
+        break;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showSourceSelectionModal(context, isTamil),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(iconData, size: 11, color: textColor),
+              const SizedBox(width: 4),
+              Text(
+                labelText,
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: textColor),
+              ),
+              const SizedBox(width: 2),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 12, color: textColor.withValues(alpha: 0.8)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Bottom sheet to select panchangam data source (Online, Navamsha API, Local Storage)
+  void _showSourceSelectionModal(BuildContext context, bool isTamil) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: TNTColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: TNTColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.dataset_rounded, color: TNTColors.primary, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isTamil ? 'பஞ்சாங்கம் தரவு ஆதாரம்' : 'Panchangam Data Source',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: TNTColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            isTamil
+                                ? 'விரும்பும் தரவு மூலத்தைத் தேர்ந்தெடுக்கவும்'
+                                : 'Select how panchangam data is fetched',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: TNTColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                // Option 1: Online (Supabase Cloud)
+                _buildSourceOptionTile(
+                  ctx: ctx,
+                  isTamil: isTamil,
+                  source: PanchangDataSource.online,
+                  title: isTamil ? 'ஆன்லைன் (Online Server)' : 'Online Cloud (Supabase)',
+                  description: isTamil
+                      ? 'கிளவுட் சர்வரிலிருந்து நேரடித் தரவு பெறப்படும்'
+                      : 'Fetch directly from central Supabase cloud server',
+                  icon: Icons.cloud_done_rounded,
+                  color: const Color(0xFF16A34A),
+                ),
+                const SizedBox(height: 10),
+
+                // Option 2: Navamsha API
+                _buildSourceOptionTile(
+                  ctx: ctx,
+                  isTamil: isTamil,
+                  source: PanchangDataSource.navamsha,
+                  title: isTamil ? 'நவாம்சம் API (Navamsha API)' : 'Navamsha Live API',
+                  description: isTamil
+                      ? 'நவாம்சம் ஜோதிட API மூலம் துல்லியக் கணிப்புகள்'
+                      : 'Official high-precision Navamsha astrological API',
+                  icon: Icons.auto_awesome_rounded,
+                  color: const Color(0xFF7C3AED),
+                ),
+                const SizedBox(height: 10),
+
+                // Option 3: Local Storage / Offline
+                _buildSourceOptionTile(
+                  ctx: ctx,
+                  isTamil: isTamil,
+                  source: PanchangDataSource.offline,
+                  title: isTamil ? 'உள்ளூர் சேமிப்பகம் (Local Storage)' : 'Local Storage (Offline)',
+                  description: isTamil
+                      ? 'சாதனத்தில் உள்ள நினைவகம் மற்றும் வானியல் கணிதம்'
+                      : 'Locally cached data and mathematical ephemeris',
+                  icon: Icons.offline_pin_rounded,
+                  color: const Color(0xFFD97706),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSourceOptionTile({
+    required BuildContext ctx,
+    required bool isTamil,
+    required PanchangDataSource source,
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+  }) {
+    final isSelected = _activeSource == source;
+    return InkWell(
+      onTap: () async {
+        Navigator.pop(ctx);
+        if (_activeSource == source) return;
+
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('tnt_panchang_source', source.name);
+        } catch (_) {}
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                source == PanchangDataSource.navamsha
+                    ? (isTamil ? 'நவாம்சம் API மூலம் தரவு பெறப்படுகிறது...' : 'Fetching from Navamsha API...')
+                    : source == PanchangDataSource.online
+                        ? (isTamil ? 'ஆன்லைன் சர்வரிலிருந்து புதுப்பிக்கப்படுகிறது...' : 'Updating from Online Server...')
+                        : (isTamil ? 'உள்ளூர் சேமிப்பகம் தேர்ந்தெடுக்கப்பட்டது' : 'Local storage selected'),
+              ),
+              duration: const Duration(seconds: 2),
+              backgroundColor: TNTColors.textPrimary,
+            ),
+          );
+        }
+
+        await _loadAllHomeData(targetSource: source);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.08) : TNTColors.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : TNTColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? color : TNTColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: TNTColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle_rounded, color: color, size: 20)
+            else
+              Icon(Icons.radio_button_off_rounded, color: Colors.grey.shade400, size: 20),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1145,8 +1481,21 @@ class _HomeScreenState extends State<HomeScreen> {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final f = _festivals[index];
-            final title = isTamil ? f.nameTa : f.name;
-            final desc = isTamil ? f.descriptionTa : f.description;
+            final cleanName = isTamil
+                ? (f.nameTa.trim().isNotEmpty ? f.nameTa : f.name)
+                : (f.name.trim().isNotEmpty ? f.name : f.nameTa);
+            final title = cleanName.trim().isNotEmpty
+                ? cleanName.trim()
+                : (isTamil
+                    ? (f.categoryTa.isNotEmpty ? f.categoryTa : 'பண்டிகை')
+                    : (f.category.isNotEmpty ? f.category : 'Festival'));
+
+            final cleanDesc = isTamil
+                ? (f.descriptionTa.trim().isNotEmpty ? f.descriptionTa : f.description)
+                : (f.description.trim().isNotEmpty ? f.description : f.descriptionTa);
+            final desc = (cleanDesc.trim().isNotEmpty && cleanDesc.trim() != title)
+                ? cleanDesc.trim()
+                : (isTamil ? '${f.dayOfWeekTa} • ${f.categoryTa}' : '${f.dayOfWeekEn} • ${f.category}');
 
             return Card(
               color: TNTColors.surface,
@@ -1241,8 +1590,19 @@ class _HomeScreenState extends State<HomeScreen> {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final s = _specialDays[index];
-            final title = isTamil ? s.titleTa : s.title;
-            final desc = isTamil ? s.descriptionTa : s.description;
+            final cleanTitle = isTamil
+                ? (s.titleTa.trim().isNotEmpty ? s.titleTa : s.title)
+                : (s.title.trim().isNotEmpty ? s.title : s.titleTa);
+            final title = cleanTitle.trim().isNotEmpty
+                ? cleanTitle.trim()
+                : _getCategoryLabel(s.category, isTamil);
+
+            final cleanDesc = isTamil
+                ? (s.descriptionTa.trim().isNotEmpty ? s.descriptionTa : s.description)
+                : (s.description.trim().isNotEmpty ? s.description : s.descriptionTa);
+            final desc = (cleanDesc.trim().isNotEmpty && cleanDesc.trim() != title)
+                ? cleanDesc.trim()
+                : (isTamil ? '${s.dayOfWeekTa} • ${s.categoryTa}' : '${s.dayOfWeekEn} • ${s.category}');
 
             return Card(
               color: TNTColors.surface,
@@ -1304,6 +1664,31 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_muhurthams.isEmpty) return const SizedBox();
     final nextM = _muhurthams[0];
 
+    final displayDateStr = nextM.tamilDateStr.trim().isNotEmpty
+        ? nextM.tamilDateStr
+        : '${nextM.date.day} ${_getMonthName(nextM.date.month, isTamil)} ${nextM.date.year}';
+
+    final descText = () {
+      final d = isTamil
+          ? (nextM.descriptionTa.trim().isNotEmpty ? nextM.descriptionTa : nextM.description)
+          : (nextM.description.trim().isNotEmpty ? nextM.description : nextM.descriptionTa);
+      if (d.trim().isNotEmpty) return d.trim();
+      return isTamil ? 'சுப முகூர்த்த நாள்' : 'Auspicious Muhurtham Day';
+    }();
+
+    final timeStr = () {
+      if (nextM.startTime.trim().isNotEmpty &&
+          nextM.endTime.trim().isNotEmpty &&
+          nextM.startTime != '-' &&
+          nextM.endTime != '-') {
+        return '${nextM.startTime} – ${nextM.endTime}';
+      }
+      if (nextM.startTime.trim().isNotEmpty && nextM.startTime != '-') {
+        return nextM.startTime;
+      }
+      return isTamil ? 'காலை 06:00 AM – 07:30 AM' : '06:00 AM – 07:30 AM';
+    }();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1327,7 +1712,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    nextM.tamilDateStr,
+                    displayDateStr,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: TNTColors.primary),
                   ),
                   Container(
@@ -1342,7 +1727,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                isTamil ? nextM.descriptionTa : nextM.description,
+                descText,
                 style: const TextStyle(fontSize: 12, color: TNTColors.textSecondary),
               ),
               const SizedBox(height: 12),
@@ -1354,7 +1739,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Icon(Icons.access_time_rounded, size: 14, color: TNTColors.primary),
                     const SizedBox(width: 8),
                     Text(
-                      '${nextM.startTime} – ${nextM.endTime}',
+                      timeStr,
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: TNTColors.textPrimary),
                     )
                   ],
@@ -1365,6 +1750,30 @@ class _HomeScreenState extends State<HomeScreen> {
         )
       ],
     );
+  }
+
+  String _getCategoryLabel(String cat, bool isTamil) {
+    final c = cat.toLowerCase();
+    if (c.contains('amavasai')) return isTamil ? 'அமாவாசை' : 'Amavasai';
+    if (c.contains('pournami')) return isTamil ? 'பௌர்ணமி' : 'Pournami';
+    if (c.contains('pradosham')) return isTamil ? 'பிரதோஷம்' : 'Pradosham';
+    if (c.contains('sashti')) return isTamil ? 'சஷ்டி' : 'Sashti';
+    if (c.contains('ekadashi')) return isTamil ? 'ஏகாதசி' : 'Ekadashi';
+    if (c.contains('krithigai')) return isTamil ? 'கிருத்திகை' : 'Krithigai';
+    if (c.contains('chaturthi')) return isTamil ? 'சதுர்த்தி' : 'Chaturthi';
+    if (c.contains('shivaratri')) return isTamil ? 'சிவராத்திரி' : 'Shivaratri';
+    return isTamil ? 'சிறப்பு நாள்' : 'Special Day';
+  }
+
+  String _getMonthName(int month, bool isTamil) {
+    if (month < 1 || month > 12) return '';
+    if (isTamil) {
+      const months = ['ஜனவரி', 'பிப்ரவரி', 'மார்ச்', 'ஏப்ரல்', 'மே', 'ஜூன்', 'ஜூலை', 'ஆகஸ்ட்', 'செப்டம்பர்', 'அக்டோபர்', 'நவம்பர்', 'டிசம்பர்'];
+      return months[month - 1];
+    } else {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return months[month - 1];
+    }
   }
 
   Widget _buildCateringCard(String Function(String) translate, bool isTamil) {
